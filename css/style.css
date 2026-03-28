@@ -19,6 +19,10 @@
   --shadow: 0 4px 24px rgba(0,0,0,0.4);
 }
 
+html, body {
+  overflow-x: hidden;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);
@@ -35,6 +39,9 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
+  width: 100%;
+  max-width: 100vw;
+  overflow: hidden;
 }
 
 .app-header-top {
@@ -48,12 +55,13 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 24px 8px;
-  overflow-x: auto;
+  padding: 0 16px 8px;
+  overflow-x: scroll;
   overflow-y: hidden;
   white-space: nowrap;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  max-width: 100vw;
 }
 
 .app-header-bar::-webkit-scrollbar { display: none; }
