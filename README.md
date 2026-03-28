@@ -23,21 +23,29 @@ Four integrated tools in one portable app:
 
 ## How to use it
 
-### Option 1 — GitHub Pages (online, no install)
+### Option 1 — Download and run locally (recommended)
 
-Open it directly in your browser. No download needed.
+1. Click the green **Code** button on this page and select **Download ZIP**
+2. Extract the ZIP anywhere on your computer (or on a USB stick)
+3. Open `index.html` in any modern browser (Chrome, Edge, Firefox, Safari)
+4. No server, no installation, no internet connection required
 
-### Option 2 — Local / USB (fully offline)
+This is the recommended approach. Your data file lives on your own machine and nothing is shared with anyone.
 
-1. Download or clone this repository
-2. Open `index.html` in any modern browser (Chrome, Edge, Firefox, Safari)
-3. No server, no installation, no internet connection required
+### Option 2 — Fork the repository (for developers)
+
+If you want to track future updates or host your own copy on GitHub Pages:
+
+1. Click **Fork** at the top of this page to create your own copy of the repo
+2. Enable GitHub Pages in your fork's Settings (source: `main` branch, root folder)
+3. Your personal copy will be live at `https://yourusername.github.io/repo-name/projects/production-manager/`
+4. Pull updates from this repo whenever a new version is released
 
 ### Saving your data
 
-On first use, click **New Data File** in the top bar. This creates a `.json` file on your computer where all orders and settings are saved. Next time, click **Open Data File** to reload it. Works across sessions and across different computers by copying the data file.
+On first use, click **New Data File** in the top bar. This creates a `.json` file on your computer where all orders and settings are saved. Next time, click **Open Data File** to reload it. Works across sessions and across different computers — just copy the `.json` file alongside the app.
 
-If you skip this step, data is saved to browser localStorage only (lost if you clear the browser).
+If you skip this step, data is saved to browser localStorage only (lost if you clear the browser or switch computers).
 
 ---
 
