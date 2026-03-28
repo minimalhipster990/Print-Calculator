@@ -4,7 +4,9 @@
 
 Built for small-scale MSLA print farms — manage orders, optimize build plates, schedule print queues, and calculate accurate production costs, all from a single HTML file with no installation required.
 
-> Copyright (c) 2026 minimalhipster990. All rights reserved.
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/minimalhipster990)
+
+> Copyright (c) 2026 minimalhipster990. MIT License — free to use, modify, and share.
 
 ---
 
@@ -281,8 +283,18 @@ production-manager/
 
 ---
 
+## Support
+
+If this tool saves you time, consider buying me a coffee:
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/minimalhipster990)
+
+---
+
 ## License
 
-Copyright (c) 2026 minimalhipster990. All rights reserved.
+MIT License — Copyright (c) 2026 minimalhipster990.
 
-This software is provided for personal and commercial use. You may not redistribute, resell, or publish modified versions without permission.
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the software, subject to the following condition: the above copyright notice and this permission notice must be included in all copies or substantial portions of the software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.

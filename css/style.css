@@ -663,6 +663,21 @@ tbody tr:hover { background: rgba(255,255,255,0.02); }
 
 .btn-file:hover { color: var(--text); border-color: var(--accent); }
 
+.btn-kofi {
+  background: #ff5e5b;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.6;
+}
+.btn-kofi:hover { background: #e04e4b; color: #fff; }
+
 /* ── Time Input ──────────────────────────────────────────────────────────────── */
 .time-input {
   display: flex;
