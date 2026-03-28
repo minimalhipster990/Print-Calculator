@@ -177,16 +177,19 @@ function renderOrdersTable() {
   const tbody = document.getElementById('orders-tbody');
   if (!tbody) return;
   if (orders.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No orders yet. Click "Add Order" to start.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="empty-state">No orders yet. Click "Add Order" to start.</td></tr>';
     return;
   }
   tbody.innerHTML = orders.map(o => {
     const typeBadge = o.orderType === 'plate'
       ? '<span class="type-badge type-plate">Plate</span>'
       : '<span class="type-badge type-model">Model</span>';
-    const ptH = o.printTimeH || 0;
-    const ptM = o.printTimeMin || 0;
+    const ptH = parseInt(o.printTimeH) || 0;
+    const ptM = parseInt(o.printTimeMin) || 0;
     const printTime = (ptH || ptM) ? `${ptH}h ${ptM}m` : '—';
+    const qty = parseInt(o.quantity) || 1;
+    const totalMin = qty * (ptH * 60 + ptM);
+    const totalTime = totalMin > 0 ? `${Math.floor(totalMin / 60)}h ${totalMin % 60}m` : '—';
     return `
     <tr>
       <td>${esc(o.orderId)}</td>
@@ -196,6 +199,7 @@ function renderOrdersTable() {
       <td>${o.height}</td>
       <td>${o.quantity}</td>
       <td>${printTime}</td>
+      <td>${totalTime}</td>
       <td><span class="resin-badge">${esc(o.resinType)}</span></td>
       <td>${o.deadline ? formatDate(o.deadline) : '—'}</td>
       <td>
