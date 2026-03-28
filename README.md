@@ -45,7 +45,7 @@ If you want to track future updates or host your own copy on GitHub Pages:
 
 ### Saving your data
 
-On first use, click **New Data File** in the top bar. This creates a `.json` file on your computer where all orders and settings are saved. Next time, click **Open Data File** to reload it. Works across sessions and across different computers — just copy the `.json` file alongside the app.
+On first use, click **New Data File** in the top bar. This creates a `.json` file on your computer where all orders and settings are saved. Next time, click **Open Data File** to reload it. Works across sessions and across different computers, just copy the `.json` file alongside the app.
 
 If you skip this step, data is saved to browser localStorage only (lost if you clear the browser or switch computers).
 
@@ -88,7 +88,7 @@ sale_price = total_cost / (1 - failed_print_risk/100) / (1 - profit_margin/100)
 ### Tips
 
 - Select a printer at the top and wattage fills automatically
-- All inputs persist when you switch tabs — the calculator remembers your last values
+- All inputs persist when you switch tabs, the calculator remembers your last values
 - Use this per model to build up your pricing sheet
 
 ---
@@ -147,7 +147,7 @@ Configure your **fleet** — which printers you have available and how many of e
 ### How batching works
 
 **Full Plate orders:**
-1. The app checks which printers in your fleet can fit the plate dimensions (both orientations are tested — portrait plates can be assigned to landscape printers)
+1. The app checks which printers in your fleet can fit the plate dimensions (both orientations are tested. Portrait plates can be assigned to landscape printers)
 2. The cheapest-to-run printer that fits is selected (lowest wattage)
 3. Each qty unit becomes its own batch
 
@@ -258,7 +258,7 @@ Custom printers can be added in the Settings tab with any build plate dimensions
 
 ## Data & Privacy
 
-All data is stored locally — in your browser's localStorage or in a JSON file on your own computer. Nothing is sent to any server. The app works fully offline after the initial page load.
+All data is stored locally: in your browser's localStorage or in a JSON file on your own computer. Nothing is sent to any server. The app works fully offline after the initial page load.
 
 ---
 
