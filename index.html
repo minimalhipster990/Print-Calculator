@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tiny Legions — Production Manager</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TL Production">
+  <meta name="theme-color" content="#1a1d27">
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<header class="app-header">
+  <div class="app-logo">Tiny <span>Legions</span> Production</div>
+  <div id="file-status" class="file-status disconnected" title="Data saved in browser only — won't transfer to another PC unless you connect a data file">
+    <span class="file-dot"></span> Browser only
+  </div>
+  <div class="file-actions">
+    <button class="btn-file" onclick="handleOpenExisting()" title="Load data from an existing tl-data.json file (e.g. from your USB)">Open Data File</button>
+    <button class="btn-file" onclick="handleConnectNew()" title="Create a new data file and enable auto-save to it">New Data File</button>
+  </div>
+  <nav class="tab-nav">
+    <button class="tab-btn" data-tab="calculator" onclick="showTab('calculator')">Cost Calculator</button>
+    <button class="tab-btn" data-tab="orders" onclick="showTab('orders')">Orders</button>
+    <button class="tab-btn" data-tab="queue" onclick="showTab('queue')">Print Queue</button>
+    <button class="tab-btn" data-tab="settings" onclick="showTab('settings')">Settings</button>
+  </nav>
+</header>
+
+<main class="main">
+
+  <!-- ── Tab: Calculator ──────────────────────────────────────────────────── -->
+  <div id="tab-calculator" class="tab-panel">
+    <h1 class="page-title">Cost Calculator</h1>
+    <div class="calc-grid">
+      <!-- Inputs -->
+      <div>
+        <div class="card">
+          <div class="card-title">Printer & Resin</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Printer</label>
+              <select id="calc-printer" onchange="calcUpdatePrinter()"></select>
+            </div>
+            <div class="form-group">
+              <label>Resin Type</label>
+              <select id="calc-resin-type" onchange="calcUpdateResinPrice()"></select>
+            </div>
+            <div class="form-group">
+              <label>Resin Price</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-resin-price" min="0" step="0.5" value="35" oninput="calcRun()">
+                <span class="unit">€/L</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Printer Wattage</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-wattage" min="0" step="1" value="48" oninput="calcRun()">
+                <span class="unit">W</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Print Details</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Model Volume (from Lychee)</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-volume" min="0" step="0.1" value="10" oninput="calcRun()">
+                <span class="unit">ml</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Support Volume</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-support-pct" min="0" max="100" step="1" value="20" oninput="calcRun()">
+                <span class="unit">%</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Print Time (from Lychee)</label>
+              <div class="time-input">
+                <input type="number" id="calc-hours" min="0" step="1" value="2" oninput="calcRun()" onblur="calcNormalizeTime(); calcRun()">
+                <span class="unit">h</span>
+                <input type="number" id="calc-minutes" min="0" step="1" value="0" oninput="calcRun()" onblur="calcNormalizeTime(); calcRun()">
+                <span class="unit">min</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Electricity Rate</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-electricity" min="0" step="0.01" value="0.25" oninput="calcRun()">
+                <span class="unit">€/kWh</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Consumables</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>IPA Price</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-ipa-price" min="0" step="0.1" value="5" oninput="calcRun()">
+                <span class="unit">€/L</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>IPA Used per Print</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-ipa-per-print" min="0" step="1" value="30" oninput="calcRun()">
+                <span class="unit">ml</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>FEP Film Cost</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-fep-cost" min="0" step="0.5" value="12" oninput="calcRun()">
+                <span class="unit">€</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>FEP Lifespan</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-fep-lifespan" min="1" step="10" value="200" oninput="calcRun()">
+                <span class="unit">prints</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Packaging & Shipping</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Box + Padding + Wrap</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-box-materials" min="0" step="0.01" value="0.80" oninput="calcRun()">
+                <span class="unit">€</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Labels + Tape</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-labels-tape" min="0" step="0.01" value="0.15" oninput="calcRun()">
+                <span class="unit">€</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Branding Inserts</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-branding" min="0" step="0.01" value="0.20" oninput="calcRun()">
+                <span class="unit">€</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Packing Time</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-packing-time" min="0" step="1" value="10" oninput="calcRun()">
+                <span class="unit">min</span>
+              </div>
+            </div>
+            <div class="form-group full">
+              <label>Shipping Carrier Cost</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-shipping-cost" min="0" step="0.01" value="5.50" oninput="calcRun()">
+                <span class="unit">€</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Labor & Business</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Printer Purchase Price</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-purchase-price" min="0" step="10" value="250" oninput="calcRun()">
+                <span class="unit">€</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Printer Lifespan</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-lifespan" min="1" step="1" value="5" oninput="calcRun()">
+                <span class="unit">years</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Labor Time (prep + post)</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-labor-time" min="0" step="5" value="30" oninput="calcRun()">
+                <span class="unit">min</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Labor Rate</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-labor-rate" min="0" step="1" value="15" oninput="calcRun()">
+                <span class="unit">€/h</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Failed Print Risk</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-risk" min="0" max="100" step="1" value="10" oninput="calcRun()">
+                <span class="unit">%</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Profit Margin</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-margin" min="0" max="99" step="1" value="40" oninput="calcRun()">
+                <span class="unit">%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div class="results-card">
+        <div class="card-title">Cost Breakdown</div>
+        <div class="result-row"><span class="label">Resin</span><span class="value" id="out-resin">€0.00</span></div>
+        <div class="result-row"><span class="label">Electricity</span><span class="value" id="out-electricity">€0.00</span></div>
+        <div class="result-row"><span class="label">Consumables</span><span class="value" id="out-consumables">€0.00</span></div>
+        <div class="result-row"><span class="label">Depreciation</span><span class="value" id="out-depreciation">€0.00</span></div>
+        <div class="result-row"><span class="label">Labor</span><span class="value" id="out-labor">€0.00</span></div>
+        <div class="result-row"><span class="label">Packaging</span><span class="value" id="out-packaging">€0.00</span></div>
+        <div class="result-row"><span class="label">Shipping</span><span class="value" id="out-shipping">€0.00</span></div>
+        <div class="section-divider"></div>
+        <div class="result-total"><span class="label">Production Cost</span><span class="value" id="out-total">€0.00</span></div>
+        <div class="result-sale">
+          <div class="sale-label">Recommended Sale Price</div>
+          <div class="sale-value" id="out-sale-price">€0.00</div>
+          <div class="per-cm3" id="out-per-cm3">€0.000/cm³</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab: Orders ───────────────────────────────────────────────────────── -->
+  <div id="tab-orders" class="tab-panel">
+    <h1 class="page-title">Orders</h1>
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="openOrderModal()">+ Add Order</button>
+      <label class="btn btn-secondary" style="cursor:pointer">
+        Import CSV
+        <input type="file" accept=".csv" style="display:none" onchange="importOrdersCSV(this.files[0])">
+      </label>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>Customer</th>
+            <th>Model</th>
+            <th>Footprint W×D (mm)</th>
+            <th>Height (mm)</th>
+            <th>Qty</th>
+            <th>Resin</th>
+            <th>Deadline</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="orders-tbody">
+          <tr><td colspan="9" class="empty-state">No orders yet. Click "Add Order" to start.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Tab: Queue ────────────────────────────────────────────────────────── -->
+  <div id="tab-queue" class="tab-panel">
+    <h1 class="page-title">Print Queue</h1>
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="renderQueue()">Generate Queue</button>
+      <button class="btn btn-secondary" onclick="exportQueueCSV(currentBatches)">Export CSV</button>
+    </div>
+    <div id="queue-container">
+      <div class="empty-state">Click "Generate Queue" to build the print schedule.</div>
+    </div>
+  </div>
+
+  <!-- ── Tab: Settings ─────────────────────────────────────────────────────── -->
+  <div id="tab-settings" class="tab-panel">
+    <h1 class="page-title">Settings</h1>
+    <div class="settings-grid">
+      <!-- Global Defaults -->
+      <div class="card">
+        <div class="card-title">Global Defaults</div>
+        <div class="setting-row">
+          <label>Electricity Rate</label>
+          <div class="input-with-unit"><input type="number" id="s-electricity" min="0" step="0.01"><span class="unit">€/kWh</span></div>
+        </div>
+        <div class="setting-row">
+          <label>Labor Rate</label>
+          <div class="input-with-unit"><input type="number" id="s-labor-rate" min="0" step="1"><span class="unit">€/h</span></div>
+        </div>
+        <div class="setting-row">
+          <label>Failed Print Risk</label>
+          <div class="input-with-unit"><input type="number" id="s-risk" min="0" max="100" step="1"><span class="unit">%</span></div>
+        </div>
+        <div class="setting-row">
+          <label>Profit Margin</label>
+          <div class="input-with-unit"><input type="number" id="s-margin" min="0" max="99" step="1"><span class="unit">%</span></div>
+        </div>
+      </div>
+
+      <!-- Consumables -->
+      <div class="card">
+        <div class="card-title">Consumables</div>
+        <div class="setting-row">
+          <label>IPA Price</label>
+          <div class="input-with-unit"><input type="number" id="s-ipa-price" min="0" step="0.1"><span class="unit">€/L</span></div>
+        </div>
+        <div class="setting-row">
+          <label>IPA per Print</label>
+          <div class="input-with-unit"><input type="number" id="s-ipa-per-print" min="0" step="1"><span class="unit">ml</span></div>
+        </div>
+        <div class="setting-row">
+          <label>FEP Film Cost</label>
+          <div class="input-with-unit"><input type="number" id="s-fep-cost" min="0" step="0.5"><span class="unit">€</span></div>
+        </div>
+        <div class="setting-row">
+          <label>FEP Lifespan</label>
+          <div class="input-with-unit"><input type="number" id="s-fep-lifespan" min="1" step="10"><span class="unit">prints</span></div>
+        </div>
+      </div>
+
+      <!-- Resin Prices -->
+      <div class="card">
+        <div class="card-title">Resin Prices</div>
+        <div id="resin-prices-container"></div>
+      </div>
+
+      <!-- Printer Depreciation -->
+      <div class="card">
+        <div class="card-title">Printer Depreciation</div>
+        <div id="printer-dep-container">
+          <div class="printer-dep-row">
+            <span class="printer-name">Phrozen Sonic Mini 8K</span>
+            <div class="printer-dep-inputs">
+              <div class="input-with-unit"><input type="number" id="dep-price-mini8k" min="0" step="10"><span class="unit">€</span></div>
+              <div class="input-with-unit"><input type="number" id="dep-life-mini8k" min="1" step="1"><span class="unit">yrs</span></div>
+            </div>
+          </div>
+          <div class="printer-dep-row">
+            <span class="printer-name">Concepts3D Athena II</span>
+            <div class="printer-dep-inputs">
+              <div class="input-with-unit"><input type="number" id="dep-price-athena2" min="0" step="10"><span class="unit">€</span></div>
+              <div class="input-with-unit"><input type="number" id="dep-life-athena2" min="1" step="1"><span class="unit">yrs</span></div>
+            </div>
+          </div>
+          <div class="printer-dep-row">
+            <span class="printer-name">Uniformation GK3 Pro</span>
+            <div class="printer-dep-inputs">
+              <div class="input-with-unit"><input type="number" id="dep-price-gk3pro" min="0" step="10"><span class="unit">€</span></div>
+              <div class="input-with-unit"><input type="number" id="dep-life-gk3pro" min="1" step="1"><span class="unit">yrs</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="saveSettingsForm()">Save Settings</button>
+      <button class="btn btn-secondary" onclick="exportAllData()">Export Backup</button>
+      <label class="btn btn-secondary" style="cursor:pointer">
+        Import Backup
+        <input type="file" accept=".json" style="display:none" onchange="
+          const r = new FileReader();
+          r.onload = e => { if(importAllData(e.target.result)) { orders=loadOrders(); settings=loadSettings(); initSettingsTab(); showToast('Backup imported.'); } else { alert('Invalid backup file.'); } };
+          r.readAsText(this.files[0]);
+        ">
+      </label>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── Order Modal ─────────────────────────────────────────────────────────── -->
+<div id="order-modal" class="modal-overlay" onclick="if(event.target===this)closeOrderModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="modal-title" class="modal-title">Add Order</span>
+      <button class="btn-icon" onclick="closeOrderModal()">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Order ID</label>
+        <input type="text" id="field-orderId" placeholder="e.g. #1042">
+      </div>
+      <div class="form-group">
+        <label>Customer</label>
+        <input type="text" id="field-customer" placeholder="Customer name">
+      </div>
+      <div class="form-group full">
+        <label>Model Name *</label>
+        <input type="text" id="field-modelName" placeholder="e.g. Panopticon Guard x3">
+      </div>
+      <div class="form-group full lychee-hint">
+        <span class="hint-icon">?</span>
+        <span>In Lychee: select the model &rarr; right panel shows <strong>X</strong> (width), <strong>Y</strong> (depth), <strong>Z</strong> (height) in mm. Use those values below.</span>
+      </div>
+      <div class="form-group">
+        <label>Footprint Width — X (mm) *</label>
+        <input type="number" id="field-footprintW" min="0" step="0.1" placeholder="X from Lychee">
+      </div>
+      <div class="form-group">
+        <label>Footprint Depth — Y (mm) *</label>
+        <input type="number" id="field-footprintD" min="0" step="0.1" placeholder="Y from Lychee">
+      </div>
+      <div class="form-group">
+        <label>Height — Z (mm)</label>
+        <input type="number" id="field-height" min="0" step="0.1" placeholder="Z from Lychee">
+      </div>
+      <div class="form-group">
+        <label>Quantity</label>
+        <input type="number" id="field-quantity" min="1" step="1" value="1">
+      </div>
+      <div class="form-group">
+        <label>Resin Type</label>
+        <select id="field-resinType"></select>
+      </div>
+      <div class="form-group">
+        <label>Deadline</label>
+        <input type="date" id="field-deadline">
+      </div>
+      <div class="form-group full">
+        <label>Notes</label>
+        <input type="text" id="field-notes" placeholder="Optional notes">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeOrderModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveOrder()">Save Order</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ──────────────────────────────────────────────────────────────── -->
+<div id="toast" class="toast"></div>
+
+<!-- ── Scripts ────────────────────────────────────────────────────────────── -->
+<script src="js/printers.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/calculator.js"></script>
+<script src="js/optimizer.js"></script>
+<script src="js/scheduler.js"></script>
+<script src="js/app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js');
+  }
+</script>
+
+</body>
+</html>
