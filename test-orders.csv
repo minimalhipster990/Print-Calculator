@@ -1,0 +1,8 @@
+OrderID,Customer,ModelName,FootprintW,FootprintD,Height,Quantity,ResinType,Deadline,Notes,OrderType,PrintTimeH,PrintTimeMin,ResinVolumeMl
+"#001","Marco Rossi","Panopticon Guard","28","22","32","6","Standard Grey","2026-04-30","Rush order","model","2","15","4.2"
+"#002","Laura Bianchi","Dungeon Mage","25","20","38","4","ABS-Like","2026-05-05","Handle with care","model","2","45","3.8"
+"#003","Federico Verdi","Dragon Rider","45","35","52","2","ABS-Like","2026-05-10","Large base model","model","3","30","12.5"
+"#004","Sara Neri","Skeleton Warrior","22","18","28","10","Standard Grey","2026-05-15","Bulk order","model","1","50","2.9"
+"#005","Giochi in Tavola srl","Orc Infantry Set","205","118","32","12","Standard Grey","2026-04-30","Full plate run for store","plate","2","20","185"
+"#006","Fantasy Land","Elvish Archer Formation","182","112","38","15","Water Washable","2026-05-02","","plate","2","50","162"
+"#007","Dungeon Masters Store","Undead Horde Pack","210","120","35","10","ABS-Like","2026-05-04","Urgent restock","plate","2","35","195"

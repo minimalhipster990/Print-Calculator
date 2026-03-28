@@ -60,7 +60,7 @@
               <label>Resin Price</label>
               <div class="input-with-unit">
                 <input type="number" id="calc-resin-price" min="0" step="0.5" value="35" oninput="calcRun()">
-                <span class="unit">€/L</span>
+                <span class="unit" data-curr="per-L">€/L</span>
               </div>
             </div>
             <div class="form-group">
@@ -103,7 +103,7 @@
               <label>Electricity Rate</label>
               <div class="input-with-unit">
                 <input type="number" id="calc-electricity" min="0" step="0.01" value="0.25" oninput="calcRun()">
-                <span class="unit">€/kWh</span>
+                <span class="unit" data-curr="per-kWh">€/kWh</span>
               </div>
             </div>
           </div>
@@ -116,7 +116,7 @@
               <label>IPA Price</label>
               <div class="input-with-unit">
                 <input type="number" id="calc-ipa-price" min="0" step="0.1" value="5" oninput="calcRun()">
-                <span class="unit">€/L</span>
+                <span class="unit" data-curr="per-L">€/L</span>
               </div>
             </div>
             <div class="form-group">
@@ -130,7 +130,7 @@
               <label>FEP Film Cost</label>
               <div class="input-with-unit">
                 <input type="number" id="calc-fep-cost" min="0" step="0.5" value="12" oninput="calcRun()">
-                <span class="unit">€</span>
+                <span class="unit" data-curr="flat">€</span>
               </div>
             </div>
             <div class="form-group">
@@ -138,6 +138,13 @@
               <div class="input-with-unit">
                 <input type="number" id="calc-fep-lifespan" min="1" step="10" value="200" oninput="calcRun()">
                 <span class="unit">prints</span>
+              </div>
+            </div>
+            <div class="form-group full">
+              <label>Other Consumables (gloves, paper towels, scraper...)</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-other-consumables" min="0" step="0.01" value="0.30" oninput="calcRun()">
+                <span class="unit" data-curr="flat">€</span>
               </div>
             </div>
           </div>
@@ -150,21 +157,21 @@
               <label>Box + Padding + Wrap</label>
               <div class="input-with-unit">
                 <input type="number" id="calc-box-materials" min="0" step="0.01" value="0.80" oninput="calcRun()">
-                <span class="unit">€</span>
+                <span class="unit" data-curr="flat">€</span>
               </div>
             </div>
             <div class="form-group">
               <label>Labels + Tape</label>
               <div class="input-with-unit">
                 <input type="number" id="calc-labels-tape" min="0" step="0.01" value="0.15" oninput="calcRun()">
-                <span class="unit">€</span>
+                <span class="unit" data-curr="flat">€</span>
               </div>
             </div>
             <div class="form-group">
               <label>Branding Inserts</label>
               <div class="input-with-unit">
                 <input type="number" id="calc-branding" min="0" step="0.01" value="0.20" oninput="calcRun()">
-                <span class="unit">€</span>
+                <span class="unit" data-curr="flat">€</span>
               </div>
             </div>
             <div class="form-group">
@@ -178,7 +185,7 @@
               <label>Shipping Carrier Cost</label>
               <div class="input-with-unit">
                 <input type="number" id="calc-shipping-cost" min="0" step="0.01" value="5.50" oninput="calcRun()">
-                <span class="unit">€</span>
+                <span class="unit" data-curr="flat">€</span>
               </div>
             </div>
           </div>
@@ -191,7 +198,7 @@
               <label>Printer Purchase Price</label>
               <div class="input-with-unit">
                 <input type="number" id="calc-purchase-price" min="0" step="10" value="250" oninput="calcRun()">
-                <span class="unit">€</span>
+                <span class="unit" data-curr="flat">€</span>
               </div>
             </div>
             <div class="form-group">
@@ -212,7 +219,7 @@
               <label>Labor Rate</label>
               <div class="input-with-unit">
                 <input type="number" id="calc-labor-rate" min="0" step="1" value="15" oninput="calcRun()">
-                <span class="unit">€/h</span>
+                <span class="unit" data-curr="per-h">€/h</span>
               </div>
             </div>
             <div class="form-group">
@@ -274,13 +281,14 @@
             <th>Footprint W×D (mm)</th>
             <th>Height (mm)</th>
             <th>Qty</th>
+            <th>Print Time</th>
             <th>Resin</th>
             <th>Deadline</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="orders-tbody">
-          <tr><td colspan="9" class="empty-state">No orders yet. Click "Add Order" to start.</td></tr>
+          <tr><td colspan="10" class="empty-state">No orders yet. Click "Add Order" to start.</td></tr>
         </tbody>
       </table>
     </div>
@@ -289,12 +297,24 @@
   <!-- ── Tab: Queue ────────────────────────────────────────────────────────── -->
   <div id="tab-queue" class="tab-panel">
     <h1 class="page-title">Print Queue</h1>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">Printer Fleet</div>
+      <p class="fleet-hint">Add the printers you have available and how many of each. The queue will only assign batches to these printers.</p>
+      <div id="fleet-container"></div>
+      <div class="fleet-add-row">
+        <select id="fleet-add-select"></select>
+        <button class="btn btn-secondary" onclick="addToFleet()">+ Add Printer</button>
+      </div>
+    </div>
+
     <div class="toolbar">
       <button class="btn btn-primary" onclick="renderQueue()">Generate Queue</button>
       <button class="btn btn-secondary" onclick="exportQueueCSV(currentBatches)">Export CSV</button>
     </div>
+    <div id="queue-alert"></div>
     <div id="queue-container">
-      <div class="empty-state">Click "Generate Queue" to build the print schedule.</div>
+      <div class="empty-state">Configure your fleet above, then click "Generate Queue".</div>
     </div>
   </div>
 
@@ -306,12 +326,31 @@
       <div class="card">
         <div class="card-title">Global Defaults</div>
         <div class="setting-row">
+          <label>Currency</label>
+          <select id="s-currency" onchange="onCurrencyChange()" style="width:160px;flex-shrink:0">
+            <option value="EUR">€ Euro</option>
+            <option value="USD">$ US Dollar</option>
+            <option value="GBP">£ British Pound</option>
+            <option value="CHF">CHF Swiss Franc</option>
+            <option value="JPY">¥ Japanese Yen</option>
+            <option value="CAD">CA$ Canadian Dollar</option>
+            <option value="AUD">AU$ Australian Dollar</option>
+            <option value="CNY">¥ Chinese Yuan</option>
+            <option value="KRW">₩ Korean Won</option>
+            <option value="PLN">zł Polish Zloty</option>
+            <option value="SEK">kr Swedish Krona</option>
+            <option value="NOK">kr Norwegian Krone</option>
+            <option value="DKK">kr Danish Krone</option>
+            <option value="CZK">Kč Czech Koruna</option>
+          </select>
+        </div>
+        <div class="setting-row">
           <label>Electricity Rate</label>
-          <div class="input-with-unit"><input type="number" id="s-electricity" min="0" step="0.01"><span class="unit">€/kWh</span></div>
+          <div class="input-with-unit"><input type="number" id="s-electricity" min="0" step="0.01"><span class="unit" data-curr="per-kWh">€/kWh</span></div>
         </div>
         <div class="setting-row">
           <label>Labor Rate</label>
-          <div class="input-with-unit"><input type="number" id="s-labor-rate" min="0" step="1"><span class="unit">€/h</span></div>
+          <div class="input-with-unit"><input type="number" id="s-labor-rate" min="0" step="1"><span class="unit" data-curr="per-h">€/h</span></div>
         </div>
         <div class="setting-row">
           <label>Failed Print Risk</label>
@@ -328,7 +367,7 @@
         <div class="card-title">Consumables</div>
         <div class="setting-row">
           <label>IPA Price</label>
-          <div class="input-with-unit"><input type="number" id="s-ipa-price" min="0" step="0.1"><span class="unit">€/L</span></div>
+          <div class="input-with-unit"><input type="number" id="s-ipa-price" min="0" step="0.1"><span class="unit" data-curr="per-L">€/L</span></div>
         </div>
         <div class="setting-row">
           <label>IPA per Print</label>
@@ -336,7 +375,7 @@
         </div>
         <div class="setting-row">
           <label>FEP Film Cost</label>
-          <div class="input-with-unit"><input type="number" id="s-fep-cost" min="0" step="0.5"><span class="unit">€</span></div>
+          <div class="input-with-unit"><input type="number" id="s-fep-cost" min="0" step="0.5"><span class="unit" data-curr="flat">€</span></div>
         </div>
         <div class="setting-row">
           <label>FEP Lifespan</label>
@@ -344,37 +383,24 @@
         </div>
       </div>
 
-      <!-- Resin Prices -->
+      <!-- Resin Types -->
       <div class="card">
-        <div class="card-title">Resin Prices</div>
+        <div class="card-title">Resin Types</div>
         <div id="resin-prices-container"></div>
+        <div style="margin-top:12px">
+          <button class="btn btn-secondary" onclick="addResinRow()">+ Add Resin</button>
+        </div>
       </div>
 
-      <!-- Printer Depreciation -->
+      <!-- Printers -->
       <div class="card">
         <div class="card-title">Printer Depreciation</div>
-        <div id="printer-dep-container">
-          <div class="printer-dep-row">
-            <span class="printer-name">Phrozen Sonic Mini 8K</span>
-            <div class="printer-dep-inputs">
-              <div class="input-with-unit"><input type="number" id="dep-price-mini8k" min="0" step="10"><span class="unit">€</span></div>
-              <div class="input-with-unit"><input type="number" id="dep-life-mini8k" min="1" step="1"><span class="unit">yrs</span></div>
-            </div>
-          </div>
-          <div class="printer-dep-row">
-            <span class="printer-name">Concepts3D Athena II</span>
-            <div class="printer-dep-inputs">
-              <div class="input-with-unit"><input type="number" id="dep-price-athena2" min="0" step="10"><span class="unit">€</span></div>
-              <div class="input-with-unit"><input type="number" id="dep-life-athena2" min="1" step="1"><span class="unit">yrs</span></div>
-            </div>
-          </div>
-          <div class="printer-dep-row">
-            <span class="printer-name">Uniformation GK3 Pro</span>
-            <div class="printer-dep-inputs">
-              <div class="input-with-unit"><input type="number" id="dep-price-gk3pro" min="0" step="10"><span class="unit">€</span></div>
-              <div class="input-with-unit"><input type="number" id="dep-life-gk3pro" min="1" step="1"><span class="unit">yrs</span></div>
-            </div>
-          </div>
+        <div id="printer-dep-container"></div>
+        <div class="section-divider" style="margin: 16px 0 12px"></div>
+        <div class="card-title" style="margin-bottom:10px">Custom Printers</div>
+        <div id="custom-printers-container"></div>
+        <div style="margin-top:8px">
+          <button class="btn btn-secondary" onclick="addCustomPrinterRow()">+ Add Printer</button>
         </div>
       </div>
     </div>
@@ -412,12 +438,27 @@
         <input type="text" id="field-customer" placeholder="Customer name">
       </div>
       <div class="form-group full">
-        <label>Model Name *</label>
+        <label>Model / Plate Name *</label>
         <input type="text" id="field-modelName" placeholder="e.g. Panopticon Guard x3">
+      </div>
+      <div class="form-group full">
+        <label>Order Type</label>
+        <div class="order-type-toggle">
+          <button type="button" class="order-type-btn active" data-type="model" onclick="setOrderType('model')">
+            Single Models
+            <small>App packs the plate for you</small>
+          </button>
+          <button type="button" class="order-type-btn" data-type="plate" onclick="setOrderType('plate')">
+            Full Plate
+            <small>Already arranged in Lychee</small>
+          </button>
+        </div>
+        <input type="hidden" id="field-orderType" value="model">
       </div>
       <div class="form-group full lychee-hint">
         <span class="hint-icon">?</span>
-        <span>In Lychee: select the model &rarr; right panel shows <strong>X</strong> (width), <strong>Y</strong> (depth), <strong>Z</strong> (height) in mm. Use those values below.</span>
+        <span><strong>Single Models:</strong> enter one model's X/Y/Z from Lychee — app figures out how many fit per plate.<br>
+        <strong>Full Plate:</strong> enter the plate's total footprint and print time from Lychee — used as-is.</span>
       </div>
       <div class="form-group">
         <label>Footprint Width — X (mm) *</label>
@@ -435,6 +476,15 @@
         <label>Quantity</label>
         <input type="number" id="field-quantity" min="1" step="1" value="1">
       </div>
+      <div class="form-group full">
+        <label>Print Time (from Lychee)</label>
+        <div class="time-input">
+          <input type="number" id="field-printTimeH" min="0" step="1" value="0">
+          <span class="unit">h</span>
+          <input type="number" id="field-printTimeMin" min="0" max="59" step="1" value="0">
+          <span class="unit">min</span>
+        </div>
+      </div>
       <div class="form-group">
         <label>Resin Type</label>
         <select id="field-resinType"></select>
@@ -442,6 +492,13 @@
       <div class="form-group">
         <label>Deadline</label>
         <input type="date" id="field-deadline">
+      </div>
+      <div class="form-group">
+        <label>Resin Volume (ml, optional)</label>
+        <div class="input-with-unit">
+          <input type="number" id="field-resinVolume" min="0" step="0.1" placeholder="From Lychee">
+          <span class="unit">ml</span>
+        </div>
       </div>
       <div class="form-group full">
         <label>Notes</label>

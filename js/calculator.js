@@ -13,10 +13,10 @@ function calcElectricityCost(printerWattage, printTimeMin, electricityRate) {
   return totalKwh * electricityRate;
 }
 
-function calcConsumablesCost(ipaPrice, ipaPerPrintMl, fepCost, fepLifespan) {
+function calcConsumablesCost(ipaPrice, ipaPerPrintMl, fepCost, fepLifespan, otherConsumables) {
   const ipaCost = (ipaPerPrintMl / 1000) * ipaPrice;
   const fepAmort = fepCost / fepLifespan;
-  return ipaCost + fepAmort;
+  return ipaCost + fepAmort + (otherConsumables || 0);
 }
 
 function calcDepreciation(purchasePrice, lifespanYears, printTimeMin) {
@@ -47,7 +47,7 @@ function calcSalePrice(totalCost, profitMarginPct) {
 function runCalculation(inputs) {
   const resin = calcResinCost(inputs.modelVolume, inputs.supportPct, inputs.resinPrice);
   const electricity = calcElectricityCost(inputs.printerWattage, inputs.printTime, inputs.electricityRate);
-  const consumables = calcConsumablesCost(inputs.ipaPrice, inputs.ipaPerPrint, inputs.fepCost, inputs.fepLifespan);
+  const consumables = calcConsumablesCost(inputs.ipaPrice, inputs.ipaPerPrint, inputs.fepCost, inputs.fepLifespan, inputs.otherConsumables);
   const depreciation = calcDepreciation(inputs.purchasePrice, inputs.lifespanYears, inputs.printTime);
   const labor = calcLaborCost(inputs.laborTime, inputs.laborRate);
   const packaging = calcPackagingCost(

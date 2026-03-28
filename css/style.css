@@ -19,8 +19,13 @@
   --shadow: 0 4px 24px rgba(0,0,0,0.4);
 }
 
-html, body {
-  overflow-x: hidden;
+html {
+  overflow-x: clip;
+}
+
+body {
+  overflow-x: clip;
+  position: relative;
 }
 
 body {
@@ -36,11 +41,11 @@ body {
 .app-header {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 100;
-  width: 100%;
-  max-width: 100vw;
   overflow: hidden;
 }
 
@@ -61,7 +66,6 @@ body {
   white-space: nowrap;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  max-width: 100vw;
 }
 
 .app-header-bar::-webkit-scrollbar { display: none; }
@@ -94,7 +98,7 @@ body {
 .tab-btn:hover { color: var(--text); background: var(--surface2); }
 .tab-btn.active { color: var(--accent); background: rgba(108,99,255,0.12); }
 
-.main { max-width: 1100px; margin: 0 auto; padding: 28px 24px; }
+.main { max-width: 1100px; margin: 0 auto; padding: 28px 24px; padding-top: 108px; }
 
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
@@ -204,7 +208,7 @@ select option { background: var(--surface2); }
   border-radius: var(--radius);
   padding: 20px;
   position: sticky;
-  top: 72px;
+  top: 108px;
 }
 
 .result-row {
@@ -361,6 +365,89 @@ tbody tr:hover { background: rgba(255,255,255,0.02); }
   margin-top: 20px;
 }
 
+/* ── Fleet Config (Queue tab) ────────────────────────────────────────────────── */
+.fleet-hint { font-size: 13px; color: var(--text-muted); margin: 0 0 12px 0; }
+
+.fleet-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.fleet-row:last-child { border-bottom: none; }
+.fleet-printer-name { flex: 1; font-size: 13px; font-weight: 500; color: var(--text); }
+
+.fleet-count-control { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.fleet-count {
+  min-width: 28px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.fleet-add-row { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
+.fleet-add-row select { flex: 1; }
+
+/* ── Print Waves ─────────────────────────────────────────────────────────────── */
+.wave-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 24px 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.wave-header::before,
+.wave-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.wave-header:first-child { margin-top: 0; }
+
+.printer-slot {
+  font-size: 10px;
+  opacity: 0.65;
+  margin-left: 3px;
+}
+
+/* ── Queue insight alert ─────────────────────────────────────────────────────── */
+.queue-insight-card {
+  background: rgba(108,99,255,0.07);
+  border: 1px solid rgba(108,99,255,0.25);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.queue-insight-card.queue-insight-single {
+  background: rgba(34,197,94,0.07);
+  border-color: rgba(34,197,94,0.25);
+}
+.queue-insight-body strong { color: var(--text); display: block; margin-bottom: 4px; }
+.queue-insight-body p { font-size: 13px; color: var(--text-muted); margin: 0 0 10px; line-height: 1.5; }
+.queue-insight-body p strong { display: inline; color: var(--text); }
+.queue-insight-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-ghost:hover { border-color: var(--text-muted); color: var(--text); }
+.btn-ghost.btn-sm { padding: 5px 12px; font-size: 12px; }
+
 /* ── Queue ──────────────────────────────────────────────────────────────────── */
 .batch-card {
   background: var(--surface);
@@ -429,6 +516,20 @@ tbody tr:hover { background: rgba(255,255,255,0.02); }
 }
 
 .batch-meta strong { color: var(--text); }
+.batch-meta-row { margin-top: 8px; }
+
+.batch-cost {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.batch-cost strong { color: var(--text); }
+.batch-cost .cost-no-volume { font-style: italic; opacity: 0.7; }
 
 .batch-warning {
   background: rgba(239,68,68,0.1);
@@ -439,6 +540,36 @@ tbody tr:hover { background: rgba(255,255,255,0.02); }
   color: var(--red);
   margin-top: 10px;
 }
+
+/* ── Order Type Toggle (modal) ────────────────────────────────────────────────── */
+.order-type-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.order-type-btn {
+  flex: 1;
+  padding: 9px 12px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.3;
+  transition: background 0.15s, color 0.15s;
+  text-align: center;
+}
+.order-type-btn:last-child { border-right: none; }
+.order-type-btn small { display: block; font-size: 10px; opacity: 0.75; margin-top: 2px; }
+.order-type-btn.active { background: var(--accent); color: white; }
+.order-type-btn.active small { opacity: 0.85; }
+
+/* ── Type badge (orders table) ────────────────────────────────────────────────── */
+.type-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 10px; vertical-align: middle; margin-left: 5px; }
+.type-badge.type-plate { background: rgba(108,99,255,0.2); color: var(--accent); }
+.type-badge.type-model { background: rgba(123,130,160,0.15); color: var(--text-muted); }
 
 /* ── Settings ────────────────────────────────────────────────────────────────── */
 .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -458,19 +589,9 @@ tbody tr:hover { background: rgba(255,255,255,0.02); }
 .setting-row .input-with-unit { width: 130px; flex-shrink: 0; }
 .setting-row input { width: 90px; }
 
-.printer-dep-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
-  gap: 12px;
-}
-
-.printer-dep-row:last-child { border-bottom: none; }
 .printer-dep-row .printer-name { font-size: 13px; font-weight: 600; flex: 1; }
 .printer-dep-inputs { display: flex; gap: 8px; }
-.printer-dep-inputs .input-with-unit { width: 120px; }
+.printer-dep-inputs .input-with-unit { width: 110px; }
 
 /* ── Toast ──────────────────────────────────────────────────────────────────── */
 .toast {
@@ -559,6 +680,100 @@ tbody tr:hover { background: rgba(255,255,255,0.02); }
 .time-input .unit { border-radius: 0; border-left: none; }
 .time-input .unit:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
 .time-input input:nth-child(3) { border-left: none; }
+
+/* ── Shared row actions ─────────────────────────────────────────────────────── */
+.row-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.btn-icon.btn-confirm { color: var(--green); }
+.btn-icon.btn-confirm:hover { color: var(--green); background: rgba(34,197,94,0.12); }
+
+/* ── Settings Column Headers ────────────────────────────────────────────────── */
+.settings-col-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 5px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.settings-col-header-spacer { flex: 1; }
+.settings-col-header-val {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+/* ── Resin Rows (Settings) ──────────────────────────────────────────────────── */
+.resin-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.resin-row:last-child { border-bottom: none; }
+.resin-row.editing { background: rgba(108,99,255,0.04); border-radius: var(--radius-sm); padding: 7px 6px; }
+
+/* Display mode */
+.resin-display-name { flex: 1; font-size: 13px; color: var(--text); min-width: 90px; }
+.resin-fields-display { display: flex; gap: 6px; flex-shrink: 0; }
+.resin-display-val {
+  width: 100px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  text-align: center;
+}
+
+/* Edit mode */
+input.resin-name { flex: 1; min-width: 90px; font-size: 13px; }
+.resin-fields { display: flex; gap: 6px; flex-shrink: 0; }
+.resin-fields .input-with-unit { width: 100px; }
+
+/* ── Printer Depreciation display mode ──────────────────────────────────────── */
+.printer-dep-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); gap: 12px; }
+.printer-dep-row:last-child { border-bottom: none; }
+.printer-dep-row.editing { background: rgba(108,99,255,0.04); border-radius: var(--radius-sm); padding: 10px 6px; }
+.printer-dep-display { display: flex; gap: 6px; flex-shrink: 0; }
+.printer-dep-val {
+  width: 80px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  text-align: center;
+}
+
+/* ── Custom Printer Cards (Settings) ────────────────────────────────────────── */
+.custom-printer-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.custom-printer-card.editing { border-color: rgba(108,99,255,0.4); }
+.custom-printer-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.custom-printer-header input { flex: 1; font-weight: 600; }
+.custom-printer-display-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.custom-printer-display-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.custom-printer-specs-display { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--text-muted); }
+.custom-printer-specs-display strong { color: var(--text); }
+.custom-printer-specs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+@media (max-width: 520px) {
+  .custom-printer-specs { grid-template-columns: 1fr 1fr; }
+  .resin-fields { width: 100%; }
+  .resin-fields .input-with-unit { flex: 1; width: auto; }
+}
 
 /* ── Lychee Hint ─────────────────────────────────────────────────────────────── */
 .lychee-hint {

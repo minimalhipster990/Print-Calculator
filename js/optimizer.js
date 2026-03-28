@@ -92,6 +92,8 @@ function packItemsOnPlate(items, plateW, plateD) {
 function expandItems(orders) {
   const items = [];
   for (const order of orders) {
+    const printTimeMin = (parseInt(order.printTimeH) || 0) * 60 + (parseInt(order.printTimeMin) || 0);
+    const resinVolumeMl = parseFloat(order.resinVolumeMl) || 0;
     for (let i = 0; i < order.quantity; i++) {
       items.push({
         id: `${order.id}_${i}`,
@@ -99,26 +101,45 @@ function expandItems(orders) {
         label: `${order.modelName} (${order.orderId || order.id})`,
         w: parseFloat(order.footprintW),
         d: parseFloat(order.footprintD),
-        h: parseFloat(order.height)
+        h: parseFloat(order.height),
+        printTimeMin,
+        resinVolumeMl
       });
     }
   }
   return items;
 }
 
+// Direct printer selection for full-plate orders (no margin — plate is already finalised in Lychee)
+// Tries both orientations so a portrait plate can be assigned to a landscape printer
+function findPrinterForPlate(w, d, availablePrinters, settings) {
+  const candidates = (availablePrinters || getAllPrinters(settings)).filter(p => {
+    return (p.plateW >= w && p.plateD >= d) || (p.plateW >= d && p.plateD >= w);
+  });
+  if (candidates.length === 0) return null;
+  return candidates.slice().sort((a, b) => a.wattage - b.wattage)[0];
+}
+
 // Recommend which printer to use for a set of items
 // Returns the printer with best utilization that fits all items
-function recommendPrinter(items, settings) {
-  const printerOrder = PRINTER_PREFERENCE_ORDER.map(id => getPrinterById(id));
+// availablePrinters: optional array to restrict which printers are considered
+function recommendPrinter(items, settings, availablePrinters) {
+  let printerOrder;
+  if (availablePrinters) {
+    printerOrder = availablePrinters.filter(Boolean);
+  } else {
+    const builtInOrdered = PRINTER_PREFERENCE_ORDER.map(id => getPrinterById(id));
+    const customPrinters = (settings && settings.customPrinters) ? settings.customPrinters : [];
+    printerOrder = [...builtInOrdered, ...customPrinters];
+  }
+
   let bestResult = null;
   let bestPrinter = null;
 
   for (const printer of printerOrder) {
-    const depSettings = settings.printerDepreciation[printer.id] || {};
     const result = packItemsOnPlate(items, printer.plateW, printer.plateD);
 
     if (result.doesNotFitCount === 0) {
-      // All items fit -- prefer this printer (cheapest first due to PRINTER_PREFERENCE_ORDER)
       if (!bestResult) {
         bestResult = result;
         bestPrinter = printer;
