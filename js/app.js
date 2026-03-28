@@ -1,3 +1,6 @@
+// Tiny Legions — Production Helper
+// Copyright (c) 2026 minimalhipster990. All rights reserved.
+
 // ── Currency ─────────────────────────────────────────────────────────────────
 const CURRENCIES = {
   EUR: '€', USD: '$', GBP: '£', CHF: 'CHF', JPY: '¥',

@@ -1,3 +1,6 @@
+// Tiny Legions — Production Helper
+// Copyright (c) 2026 minimalhipster990. All rights reserved.
+
 // Group orders into print batches, assign printers, sort by deadline
 
 function generateQueue(orders, settings) {

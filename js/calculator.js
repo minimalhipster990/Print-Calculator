@@ -1,3 +1,6 @@
+// Tiny Legions — Production Helper
+// Copyright (c) 2026 minimalhipster990. All rights reserved.
+
 function calcResinCost(modelVolumeMl, supportPct, resinPricePerL) {
   const supportMultiplier = 1 + (supportPct / 100);
   const totalVolume = modelVolumeMl * supportMultiplier;

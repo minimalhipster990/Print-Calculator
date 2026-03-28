@@ -1,3 +1,6 @@
+// Tiny Legions — Production Helper
+// Copyright (c) 2026 minimalhipster990. All rights reserved.
+
 const STORAGE_KEYS = {
   orders: 'tl_orders',
   settings: 'tl_settings'

@@ -1,3 +1,6 @@
+// Tiny Legions — Production Helper
+// Copyright (c) 2026 minimalhipster990. All rights reserved.
+
 // Shelf-packing algorithm for 2D plate optimization
 // Items are rectangular bounding boxes (W x D mm)
 // Returns: { plates: number, utilization: number (0-1), layout: [...] }

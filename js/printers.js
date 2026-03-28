@@ -1,3 +1,6 @@
+// Tiny Legions — Production Helper
+// Copyright (c) 2026 minimalhipster990. All rights reserved.
+
 const PRINTERS = [
   // ── Andrea's printers ────────────────────────────────────────────────────
   { id: 'mini8k',         name: 'Phrozen Sonic Mini 8K',           plateW: 165,    plateD: 72,    plateZ: 180, wattage: 48  },
