@@ -26,9 +26,22 @@ function updateCurrencySymbols() {
 
 function onCurrencyChange() {
   settings.currency = document.getElementById('s-currency')?.value || 'EUR';
-  saveSettings(settings);
+  void persistData({ settingsChanged: true });
   updateCurrencySymbols();
   calcRun();
+}
+
+function numOrDefault(value, fallback) {
+  const n = parseFloat(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function getDepreciationHoursPerDay(source = settings) {
+  return numOrDefault(source?.depreciationHoursPerDay ?? source?.operatingHoursPerDay, 16);
+}
+
+function getSchedulerOperatingHoursPerDay(source = settings) {
+  return numOrDefault(source?.schedulerOperatingHoursPerDay ?? source?.operatingHoursPerDay, 16);
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -38,6 +51,34 @@ let editingOrderId = null;
 let currentBatches = [];
 let queueMode = 'fleet';      // 'fleet' | 'single'
 let queueSinglePrinterId = null;
+let lastFileSaveOk = null;
+let lastBrowserSaveOk = true;
+
+async function persistData({ settingsChanged = false, ordersChanged = false } = {}) {
+  let browserOk = true;
+  if (settingsChanged) {
+    const saved = saveSettings(settings);
+    browserOk = browserOk && saved;
+    if (saved) settings = loadSettings();
+  }
+  if (ordersChanged) {
+    const saved = saveOrders(orders);
+    browserOk = browserOk && saved;
+    if (saved) orders = loadOrders();
+  }
+
+  const fileOk = await saveToFile({ savedAt: new Date().toISOString(), settings, orders });
+  lastBrowserSaveOk = browserOk;
+  lastFileSaveOk = isFileConnected() ? fileOk : null;
+  updateFileStatus();
+  if (!browserOk) {
+    showToast('Browser save failed. Check backup status before closing.');
+  }
+  if (isFileConnected() && !fileOk) {
+    showToast('Auto-save failed. Export a backup before closing.');
+  }
+  return browserOk && (!isFileConnected() || fileOk);
+}
 
 // ── Tab Routing ─────────────────────────────────────────────────────────────
 function showTab(tab) {
@@ -79,7 +120,9 @@ function initCalculatorTab() {
     if (prevResin) resinSel.value = prevResin;
   }
 
+  syncCalculatorDefaultsFromSettings();
   calcUpdatePrinter();
+  calcUpdateResinPrice();
   updateCurrencySymbols();
   calcRun();
 }
@@ -89,6 +132,24 @@ function resetCalcDropdowns() {
   const resinSel = document.getElementById('calc-resin-type');
   if (printerSel) printerSel.innerHTML = '';
   if (resinSel) resinSel.innerHTML = '';
+}
+
+function syncCalculatorDefaultsFromSettings() {
+  const setDefault = (id, value) => {
+    const el = document.getElementById(id);
+    if (el && value !== undefined && value !== null) el.value = value;
+  };
+
+  setDefault('calc-electricity', settings.electricityRate ?? 0.25);
+  setDefault('calc-ipa-price', settings.ipaPrice ?? 5);
+  setDefault('calc-ipa-per-print', settings.ipaPerPrint ?? 30);
+  setDefault('calc-fep-cost', settings.fepCost ?? 12);
+  setDefault('calc-fep-lifespan', settings.fepLifespan ?? 200);
+  setDefault('calc-labor-rate', settings.laborRate ?? 15);
+  setDefault('calc-operating-hours', getDepreciationHoursPerDay(settings));
+  setDefault('calc-risk', settings.failedPrintRisk ?? 10);
+  setDefault('calc-margin', settings.profitMargin ?? 40);
+  setDefault('calc-vat-rate', settings.vatRate ?? 22);
 }
 
 function calcUpdatePrinter() {
@@ -140,11 +201,13 @@ function calcRun() {
     fepLifespan: g('calc-fep-lifespan'),
     purchasePrice: g('calc-purchase-price'),
     lifespanYears: g('calc-lifespan'),
+    operatingHoursPerDay: g('calc-operating-hours') || 16,
     laborTime: g('calc-labor-time'),
     laborRate: g('calc-labor-rate'),
     otherConsumables: g('calc-other-consumables'),
     failedPrintRisk: g('calc-risk'),
     profitMargin: g('calc-margin'),
+    vatRate: g('calc-vat-rate'),
     boxMaterials: g('calc-box-materials'),
     labelsAndTape: g('calc-labels-tape'),
     brandingInserts: g('calc-branding'),
@@ -164,8 +227,14 @@ function calcRun() {
   set('out-labor', fmt(result.costs.labor));
   set('out-packaging', fmt(result.costs.packaging));
   set('out-shipping', fmt(result.costs.shipping));
-  set('out-total', fmt(result.total));
-  set('out-sale-price', fmt(result.salePrice));
+  set('out-total', fmt(result.suggestedPriceExVat));
+  set('out-vat', fmt(result.vatAmount));
+  set('out-fulfillment', fmt(result.fulfillmentPriceExVat));
+  set('out-sale-price', fmt(result.finalPriceInclVat));
+  set(
+    'out-price-breakdown',
+    `${fmt(result.suggestedPriceExVat)} print + ${fmt(result.vatAmount)} VAT + ${fmt(result.fulfillmentPriceExVat)} packaging & shipping`
+  );
   set('out-per-cm3', `${sym}${result.costPerCm3.toFixed(3)}/cm³`);
 }
 
@@ -206,8 +275,8 @@ function renderOrdersTable() {
       <td><span class="resin-badge">${esc(o.resinType)}</span></td>
       <td>${o.deadline ? formatDate(o.deadline) : '—'}</td>
       <td>
-        <button class="btn-icon" onclick="editOrder('${o.id}')">✎</button>
-        <button class="btn-icon btn-danger" onclick="deleteOrder('${o.id}')">✕</button>
+        <button class="btn-icon" onclick="editOrder('${escJsString(o.id)}')">✎</button>
+        <button class="btn-icon btn-danger" onclick="deleteOrder('${escJsString(o.id)}')">✕</button>
       </td>
     </tr>`;
   }).join('');
@@ -273,6 +342,8 @@ function saveOrder() {
 
   if (!order.modelName) { alert('Model name is required.'); return; }
   if (!order.footprintW || !order.footprintD) { alert('Footprint dimensions are required.'); return; }
+  if (!order.height) { alert('Height is required for scheduling.'); return; }
+  if (((order.printTimeH * 60) + order.printTimeMin) <= 0) { alert('Print time is required for scheduling.'); return; }
 
   if (editingOrderId) {
     const idx = orders.findIndex(o => o.id === editingOrderId);
@@ -281,8 +352,7 @@ function saveOrder() {
     orders.push(order);
   }
 
-  saveOrders(orders);
-  saveToFile().then(updateFileStatus);
+  void persistData({ ordersChanged: true });
   closeOrderModal();
   renderOrdersTable();
 }
@@ -292,35 +362,105 @@ function editOrder(id) { openOrderModal(id); }
 function deleteOrder(id) {
   if (!confirm('Delete this order?')) return;
   orders = orders.filter(o => o.id !== id);
-  saveOrders(orders);
-  saveToFile().then(updateFileStatus);
+  void persistData({ ordersChanged: true });
   renderOrdersTable();
 }
 
+function parseCSVRows(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += ch;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      row.push(field);
+      field = '';
+    } else if (ch === '\n') {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = '';
+    } else if (ch !== '\r') {
+      field += ch;
+    }
+  }
+
+  row.push(field);
+  rows.push(row);
+  return rows.filter(r => r.some(c => c.trim() !== ''));
+}
+
+function parseOrdersCSVText(text, makeId) {
+  const rows = parseCSVRows(text);
+  const ordersToImport = [];
+  const idFor = makeId || ((index) => `ord_${Date.now()}_${index}`);
+
+  for (const rawCols of rows.slice(1)) {
+    const cols = rawCols.map(c => c.trim());
+    const order = {
+      id: idFor(ordersToImport.length, cols),
+      orderId: cols[0] || '', customer: cols[1] || '', modelName: cols[2] || '',
+      footprintW: parseFloat(cols[3]) || 0, footprintD: parseFloat(cols[4]) || 0,
+      height: parseFloat(cols[5]) || 0, quantity: parseInt(cols[6]) || 1,
+      resinType: cols[7] || 'Standard Grey', deadline: cols[8] || '', notes: cols[9] || '',
+      orderType: cols[10] || 'model',
+      printTimeH: parseInt(cols[11]) || 0,
+      printTimeMin: parseInt(cols[12]) || 0,
+      resinVolumeMl: parseFloat(cols[13]) || 0
+    };
+    if (order.modelName) ordersToImport.push(order);
+  }
+
+  return ordersToImport;
+}
+
 function importOrdersCSV(file) {
+  if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    const lines = e.target.result.split('\n').slice(1);
-    let added = 0;
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      const cols = line.split(',').map(c => c.replace(/^"|"$/g, '').trim());
-      const order = {
-        id: `ord_${Date.now()}_${added}`,
-        orderId: cols[0] || '', customer: cols[1] || '', modelName: cols[2] || '',
-        footprintW: parseFloat(cols[3]) || 0, footprintD: parseFloat(cols[4]) || 0,
-        height: parseFloat(cols[5]) || 0, quantity: parseInt(cols[6]) || 1,
-        resinType: cols[7] || 'Standard Grey', deadline: cols[8] || '', notes: cols[9] || '',
-        orderType: cols[10] || 'model',
-        printTimeH: parseInt(cols[11]) || 0,
-        printTimeMin: parseInt(cols[12]) || 0,
-        resinVolumeMl: parseFloat(cols[13]) || 0
-      };
-      if (order.modelName) { orders.push(order); added++; }
-    }
-    saveOrders(orders);
+    const imported = parseOrdersCSVText(e.target.result);
+    orders.push(...imported);
+    void persistData({ ordersChanged: true });
     renderOrdersTable();
-    alert(`Imported ${added} orders.`);
+    alert(`Imported ${imported.length} orders.`);
+  };
+  reader.readAsText(file);
+}
+
+function handleImportBackup(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    if (importAllData(e.target.result)) {
+      orders = loadOrders();
+      settings = loadSettings();
+      void persistData();
+      initSettingsTab();
+      renderOrdersTable();
+      updateCurrencySymbols();
+      showToast('Backup imported.');
+    } else {
+      alert('Invalid backup file.');
+    }
   };
   reader.readAsText(file);
 }
@@ -346,7 +486,7 @@ function renderFleet() {
   const active = Object.entries(fleet).filter(([, count]) => count > 0);
 
   if (active.length === 0) {
-    container.innerHTML = '<div class="empty-state" style="padding:8px 0;font-size:13px">No printers added. Without a fleet, all available printers will be used.</div>';
+    container.innerHTML = '<div class="empty-state" style="padding:8px 0;font-size:13px">No printers added. Add the printers you actually own before generating a production queue.</div>';
     return;
   }
 
@@ -356,11 +496,11 @@ function renderFleet() {
     return `<div class="fleet-row" data-printer-id="${esc(id)}">
       <span class="fleet-printer-name">${esc(printer.name)}</span>
       <div class="fleet-count-control">
-        <button class="btn-icon" onclick="adjustFleetCount('${esc(id)}', -1)" title="Remove one">−</button>
+        <button class="btn-icon" onclick="adjustFleetCount('${escJsString(id)}', -1)" title="Remove one">−</button>
         <span class="fleet-count">${count}</span>
-        <button class="btn-icon" onclick="adjustFleetCount('${esc(id)}', 1)" title="Add one">+</button>
+        <button class="btn-icon" onclick="adjustFleetCount('${escJsString(id)}', 1)" title="Add one">+</button>
       </div>
-      <button class="btn-icon btn-danger" onclick="removeFromFleet('${esc(id)}')">✕</button>
+      <button class="btn-icon btn-danger" onclick="removeFromFleet('${escJsString(id)}')">✕</button>
     </div>`;
   }).join('');
 }
@@ -384,7 +524,7 @@ function adjustFleetCount(id, delta) {
   const next = Math.max(0, (settings.printerFleet[id] || 0) + delta);
   if (next === 0) delete settings.printerFleet[id];
   else settings.printerFleet[id] = next;
-  saveSettings(settings);
+  void persistData({ settingsChanged: true });
   renderFleet();
   refreshFleetDropdown();
 }
@@ -392,7 +532,7 @@ function adjustFleetCount(id, delta) {
 function removeFromFleet(id) {
   if (!settings.printerFleet) return;
   delete settings.printerFleet[id];
-  saveSettings(settings);
+  void persistData({ settingsChanged: true });
   renderFleet();
   refreshFleetDropdown();
 }
@@ -404,7 +544,7 @@ function addToFleet() {
   if (!settings.printerFleet) settings.printerFleet = {};
   if (settings.printerFleet[id]) return; // already in fleet, use +/- instead
   settings.printerFleet[id] = 1;
-  saveSettings(settings);
+  void persistData({ settingsChanged: true });
   renderFleet();
   refreshFleetDropdown();
 }
@@ -412,25 +552,28 @@ function addToFleet() {
 function estimateBatchCost(batch) {
   if (!batch.printer || !batch.printTimeMin) return null;
   const resinObj = (settings.resins || []).find(r => r.name === batch.resinType);
-  const dep = (settings.printerDepreciation || {})[batch.printer.id] || {};
+  const isBuiltIn = !!PRINTERS.find(p => p.id === batch.printer.id);
+  const dep = isBuiltIn ? ((settings.printerDepreciation || {})[batch.printer.id] || {}) : batch.printer;
   const inputs = {
     modelVolume: batch.resinVolumeMl || 0,
-    supportPct: 20,
+    supportPct: settings.queueSupportPct ?? 20,
     resinPrice: resinObj ? resinObj.price : 35,
     printerWattage: batch.printer.wattage,
     printTime: batch.printTimeMin,
-    electricityRate: settings.electricityRate || 0.25,
-    ipaPrice: settings.ipaPrice || 5,
-    ipaPerPrint: settings.ipaPerPrint || 30,
-    fepCost: settings.fepCost || 12,
-    fepLifespan: settings.fepLifespan || 200,
-    purchasePrice: dep.purchasePrice || 0,
-    lifespanYears: dep.lifespanYears || 5,
-    laborTime: 30,
-    laborRate: settings.laborRate || 15,
-    otherConsumables: 0.30,
-    failedPrintRisk: settings.failedPrintRisk || 10,
-    profitMargin: settings.profitMargin || 40,
+    electricityRate: settings.electricityRate ?? 0.25,
+    ipaPrice: settings.ipaPrice ?? 5,
+    ipaPerPrint: settings.ipaPerPrint ?? 30,
+    fepCost: settings.fepCost ?? 12,
+    fepLifespan: settings.fepLifespan ?? 200,
+    purchasePrice: dep.purchasePrice ?? 0,
+    lifespanYears: dep.lifespanYears ?? 5,
+    operatingHoursPerDay: getDepreciationHoursPerDay(settings),
+    laborTime: settings.queueLaborTimeMin ?? 30,
+    laborRate: settings.laborRate ?? 15,
+    otherConsumables: settings.queueOtherConsumables ?? 0.30,
+    failedPrintRisk: settings.failedPrintRisk ?? 10,
+    profitMargin: settings.profitMargin ?? 40,
+    vatRate: numOrDefault(settings.vatRate, 22),
     boxMaterials: 0, labelsAndTape: 0, brandingInserts: 0, packingTime: 0, shippingCost: 0
   };
   return runCalculation(inputs);
@@ -464,52 +607,61 @@ function renderQueueAlert(parallelBatches) {
   // Only show insight when fleet has more than 1 printer type
   if (fleetIds.length <= 1) { alertEl.innerHTML = ''; return; }
 
-  // Find cheapest fleet printer
   const fleetPrinters = fleetIds.map(id => getPrinterByIdAll(id, settings)).filter(Boolean)
     .sort((a, b) => a.wattage - b.wattage);
-  const cheapest = fleetPrinters[0];
+  const scheduleStartAt = new Date().toISOString();
 
-  // Try generating with only that printer
-  const singleSettings = { ...settings, printerFleet: { [cheapest.id]: 1 } };
-  const singleBatches = generateQueue(orders, singleSettings);
+  function evaluateSinglePrinter(printer) {
+    const singleSettings = { ...settings, scheduleStartAt, printerFleet: { [printer.id]: 1 } };
+    const singleBatches = generateQueue(orders, singleSettings);
+    if (singleBatches.some(b => !b.printer)) return null;
+    if (singleBatches.some(b => (b.minutesLate || 0) > 0)) return null;
+    const timedBatches = singleBatches.filter(b => b.printTimeMin > 0);
+    if (timedBatches.length === 0) return null;
+    const deadlines = singleBatches.filter(b => b.earliestDeadline).map(b => new Date(b.earliestDeadline));
+    if (deadlines.length === 0) return null;
+    const singleElec = singleBatches.reduce((s, b) =>
+      s + (b.printer ? calcElectricityCost(b.printer.wattage, b.printTimeMin || 0, settings.electricityRate ?? 0.25) : 0), 0);
+    return {
+      printer,
+      batches: singleBatches,
+      singleElec,
+      totalMin: singleBatches.reduce((s, b) => s + (b.printTimeMin || 0), 0),
+      earliestDeadline: new Date(Math.min(...deadlines.map(d => d.getTime())))
+    };
+  }
 
-  // If any batch can't be assigned (no printer fits), single mode can't handle it
-  if (singleBatches.some(b => !b.printer)) { alertEl.innerHTML = ''; return; }
+  let bestSingle = null;
+  if (queueMode === 'single' && queueSinglePrinterId) {
+    const selectedPrinter = getPrinterByIdAll(queueSinglePrinterId, settings);
+    bestSingle = selectedPrinter ? evaluateSinglePrinter(selectedPrinter) : null;
+  } else {
+    for (const printer of fleetPrinters) {
+      const candidate = evaluateSinglePrinter(printer);
+      if (candidate && (!bestSingle || candidate.singleElec < bestSingle.singleElec)) {
+        bestSingle = candidate;
+      }
+    }
+  }
 
-  // Need print times to do the timeline check
-  const timedBatches = singleBatches.filter(b => b.printTimeMin > 0);
-  if (timedBatches.length === 0) { alertEl.innerHTML = ''; return; }
-
-  // Total sequential time on single printer
-  const totalMinSingle = singleBatches.reduce((s, b) => s + (b.printTimeMin || 0), 0);
-
-  // Earliest deadline across all orders
-  const deadlines = singleBatches.filter(b => b.earliestDeadline).map(b => new Date(b.earliestDeadline));
-  if (deadlines.length === 0) { alertEl.innerHTML = ''; return; }
-  const earliestDeadline = new Date(Math.min(...deadlines.map(d => d.getTime())));
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const minutesUntilDeadline = (earliestDeadline - today) / (1000 * 60);
-
-  if (totalMinSingle > minutesUntilDeadline) { alertEl.innerHTML = ''; return; }
+  if (!bestSingle) { alertEl.innerHTML = ''; return; }
 
   // Compute electricity cost difference
   const sym = getCurrencySymbol();
-  const rate = settings.electricityRate || 0.25;
+  const rate = settings.electricityRate ?? 0.25;
   const parallelElec = parallelBatches.reduce((s, b) =>
     s + (b.printer ? calcElectricityCost(b.printer.wattage, b.printTimeMin || 0, rate) : 0), 0);
-  const singleElec = singleBatches.reduce((s, b) =>
-    s + (b.printer ? calcElectricityCost(b.printer.wattage, b.printTimeMin || 0, rate) : 0), 0);
-  const savings = parallelElec - singleElec;
+  const savings = parallelElec - bestSingle.singleElec;
 
-  const totalH = Math.floor(totalMinSingle / 60);
-  const totalM = totalMinSingle % 60;
+  const totalH = Math.floor(bestSingle.totalMin / 60);
+  const totalM = bestSingle.totalMin % 60;
 
   if (queueMode === 'single') {
     alertEl.innerHTML = `
       <div class="queue-insight-card queue-insight-single">
         <div class="queue-insight-body">
           <strong>Showing single-printer view</strong>
-          <p>Using only the <strong>${esc(cheapest.name)}</strong> — ${totalH}h ${totalM}m total, sequential.
+          <p>Using only the <strong>${esc(bestSingle.printer.name)}</strong> — ${totalH}h ${totalM}m total, sequential.
           ${savings > 0 ? `Saves approx. <strong>${sym}${savings.toFixed(2)}</strong> in electricity vs. the full fleet.` : ''}</p>
           <div class="queue-insight-actions">
             <button class="btn btn-secondary btn-sm" onclick="switchToParallel()">Switch back to parallel fleet</button>
@@ -521,10 +673,10 @@ function renderQueueAlert(parallelBatches) {
       <div class="queue-insight-card">
         <div class="queue-insight-body">
           <strong>Single printer can handle this</strong>
-          <p>Your <strong>${esc(cheapest.name)}</strong> can complete all orders by <strong>${formatDate(earliestDeadline.toISOString().slice(0,10))}</strong> without parallelising (${totalH}h ${totalM}m sequential).
+          <p>Your <strong>${esc(bestSingle.printer.name)}</strong> can complete all orders by <strong>${formatDate(bestSingle.earliestDeadline.toISOString().slice(0,10))}</strong> without parallelising (${totalH}h ${totalM}m sequential).
           ${savings > 0 ? `Using it alone saves approx. <strong>${sym}${savings.toFixed(2)}</strong> in electricity.` : ''}</p>
           <div class="queue-insight-actions">
-            <button class="btn btn-secondary btn-sm" onclick="switchToSinglePrinter('${esc(cheapest.id)}')">Use ${esc(cheapest.name)} only</button>
+            <button class="btn btn-secondary btn-sm" onclick="switchToSinglePrinter('${escJsString(bestSingle.printer.id)}')">Use ${esc(bestSingle.printer.name)} only</button>
             <button class="btn btn-ghost btn-sm" onclick="dismissQueueInsight()">Keep parallel fleet</button>
           </div>
         </div>
@@ -574,6 +726,9 @@ function renderQueue() {
     const printTimeStr = ptMin > 0
       ? `${Math.floor(ptMin / 60)}h ${ptMin % 60}m`
       : '—';
+    const scheduledStartStr = batch.scheduledStartAt ? formatDateTime(batch.scheduledStartAt) : '';
+    const scheduledEndStr = batch.scheduledEndAt ? formatDateTime(batch.scheduledEndAt) : '';
+    const readyForNextStr = batch.readyForNextAt ? formatDateTime(batch.readyForNextAt) : '';
 
     // Cost estimate
     const sym = getCurrencySymbol();
@@ -584,7 +739,7 @@ function renderQueue() {
       const resinNote = hasResin ? '' : ' <span class="cost-no-volume">(resin excluded — add volume for full estimate)</span>';
       costHTML = `<div class="batch-cost">
         <span>Production cost: <strong>${sym}${costResult.total.toFixed(2)}</strong>${resinNote}</span>
-        <span>Suggested sale: <strong>${sym}${costResult.salePrice.toFixed(2)}</strong></span>
+        <span>Batch estimate excl. packaging/shipping: <strong>${sym}${costResult.salePrice.toFixed(2)}</strong></span>
         ${ptMin > 0 ? `<span>Electricity: <strong>${sym}${costResult.costs.electricity.toFixed(2)}</strong></span>` : ''}
       </div>`;
     } else if (ptMin === 0) {
@@ -604,11 +759,15 @@ function renderQueue() {
           <span>Print time: <strong>${printTimeStr}</strong></span>
           <span>Plate fill: <strong>${utilPct}%</strong></span>
           ${batch.printer ? `<span>Plate: <strong>${batch.printer.plateW}×${batch.printer.plateD}mm</strong></span>` : ''}
+          ${scheduledStartStr ? `<span>Start: <strong>${scheduledStartStr}</strong></span>` : ''}
+          ${scheduledEndStr ? `<span>ETA: <strong>${scheduledEndStr}</strong></span>` : ''}
+          ${readyForNextStr ? `<span>Ready: <strong>${readyForNextStr}</strong></span>` : ''}
+          ${batch.minutesLate > 0 ? `<span class="cost-no-volume">${Math.ceil(batch.minutesLate / 60)}h late</span>` : ''}
           ${batch.earliestDeadline ? `<span>Deadline: <strong>${formatDate(batch.earliestDeadline)}</strong></span>` : ''}
           ${batch.daysLeft !== undefined ? `<span>${batch.daysLeft < 0 ? Math.abs(batch.daysLeft) + ' days overdue' : batch.daysLeft + ' days left'}</span>` : ''}
         </div>
         ${costHTML}
-        ${batch.warning ? `<div class="batch-warning">${batch.warning}</div>` : ''}
+        ${batch.warning ? `<div class="batch-warning">${esc(batch.warning)}</div>` : ''}
       </div>`;
   }
 
@@ -640,14 +799,37 @@ function renderQueue() {
   renderQueueAlert(currentBatches);
 }
 
+function exportCurrentQueueCSV(batches = currentBatches) {
+  const sym = getCurrencySymbol();
+  const enriched = (batches || []).map(batch => {
+    const costResult = estimateBatchCost(batch);
+    return {
+      ...batch,
+      productionCost: costResult ? costResult.total : null,
+      batchEstimate: costResult ? costResult.salePrice : null,
+      currencySymbol: sym
+    };
+  });
+  exportQueueCSV(enriched);
+}
+
 // ── Settings Tab ─────────────────────────────────────────────────────────────
 function initSettingsTab() {
   const g = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
   g('s-currency', settings.currency || 'EUR');
   g('s-electricity', settings.electricityRate);
   g('s-labor-rate', settings.laborRate);
+  g('s-operating-hours', getDepreciationHoursPerDay(settings));
+  g('s-scheduler-hours', getSchedulerOperatingHoursPerDay(settings));
+  g('s-production-start', settings.productionStartTime || '08:00');
+  g('s-turnaround', settings.queueTurnaroundMin ?? 30);
+  g('s-queue-support', settings.queueSupportPct ?? 20);
+  g('s-queue-labor-time', settings.queueLaborTimeMin ?? 30);
+  g('s-queue-other-consumables', settings.queueOtherConsumables ?? 0.30);
+  g('s-queue-packing-margin', settings.queuePackingMarginMm ?? 2);
   g('s-risk', settings.failedPrintRisk);
   g('s-margin', settings.profitMargin);
+  g('s-vat-rate', settings.vatRate ?? 22);
   g('s-ipa-price', settings.ipaPrice);
   g('s-ipa-per-print', settings.ipaPerPrint);
   g('s-fep-cost', settings.fepCost);
@@ -765,7 +947,7 @@ function doneResinRow(btn) {
     settings.resins.push(updated);
   }
 
-  saveSettings(settings);
+  void persistData({ settingsChanged: true });
   resetCalcDropdowns();
   row.outerHTML = resinRowHTML(updated, 'display');
   showToast('Resin saved.');
@@ -787,7 +969,7 @@ function deleteResinRow(btn) {
   const name = row.dataset.name;
   if (name) {
     settings.resins = (settings.resins || []).filter(r => r.name !== name);
-    saveSettings(settings);
+    void persistData({ settingsChanged: true });
     resetCalcDropdowns();
   }
   row.remove();
@@ -847,7 +1029,7 @@ function donePrinterDepRow(btn) {
   const dep = { purchasePrice, lifespanYears };
 
   settings.printerDepreciation[pid] = dep;
-  saveSettings(settings);
+  void persistData({ settingsChanged: true });
   row.outerHTML = printerDepRowHTML(printer, dep, 'display');
   showToast('Printer depreciation saved.');
 }
@@ -931,7 +1113,7 @@ function doneCustomPrinterCard(btn) {
   if (idx !== -1) settings.customPrinters[idx] = updated;
   else settings.customPrinters.push(updated);
 
-  saveSettings(settings);
+  void persistData({ settingsChanged: true });
   resetCalcDropdowns();
   card.outerHTML = customPrinterCardHTML(updated, 'display');
   showToast('Printer saved.');
@@ -942,7 +1124,7 @@ function deleteCustomPrinterCard(btn) {
   const id = card.dataset.id;
   if (!confirm('Remove this printer?')) return;
   settings.customPrinters = (settings.customPrinters || []).filter(p => p.id !== id);
-  saveSettings(settings);
+  void persistData({ settingsChanged: true });
   resetCalcDropdowns();
   card.remove();
   showToast('Printer removed.');
@@ -965,15 +1147,27 @@ function saveSettingsForm() {
   settings.currency = document.getElementById('s-currency')?.value || 'EUR';
   settings.electricityRate = g('s-electricity');
   settings.laborRate = g('s-labor-rate');
+  settings.depreciationHoursPerDay = Math.max(g('s-operating-hours') || 16, 1);
+  settings.operatingHoursPerDay = settings.depreciationHoursPerDay;
+  settings.schedulerOperatingHoursPerDay = Math.max(g('s-scheduler-hours') || 16, 1);
+  settings.productionStartTime = document.getElementById('s-production-start')?.value || '08:00';
+  settings.queueTurnaroundMin = Math.max(g('s-turnaround'), 0);
+  settings.queueSupportPct = Math.max(g('s-queue-support'), 0);
+  settings.queueLaborTimeMin = Math.max(g('s-queue-labor-time'), 0);
+  settings.queueOtherConsumables = Math.max(g('s-queue-other-consumables'), 0);
+  settings.queuePackingMarginMm = Math.max(g('s-queue-packing-margin'), 0);
   settings.failedPrintRisk = g('s-risk');
   settings.profitMargin = g('s-margin');
+  settings.vatRate = Math.max(numOrDefault(document.getElementById('s-vat-rate')?.value, 22), 0);
   settings.ipaPrice = g('s-ipa-price');
   settings.ipaPerPrint = g('s-ipa-per-print');
   settings.fepCost = g('s-fep-cost');
   settings.fepLifespan = g('s-fep-lifespan');
 
-  saveSettings(settings);
-  saveToFile().then(updateFileStatus);
+  void persistData({ settingsChanged: true });
+  syncCalculatorDefaultsFromSettings();
+  calcUpdatePrinter();
+  calcUpdateResinPrice();
   updateCurrencySymbols();
   calcRun();
   showToast('Settings saved.');
@@ -981,13 +1175,39 @@ function saveSettingsForm() {
 
 // ── Utilities ────────────────────────────────────────────────────────────────
 function esc(str) {
-  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(str ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+function escJsString(str) {
+  return esc(String(str ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n'));
 }
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function formatDateTime(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString('it-IT', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 function showToast(msg) {
@@ -1003,17 +1223,27 @@ function updateFileStatus() {
   const el = document.getElementById('file-status');
   if (!el) return;
   if (isFileConnected()) {
-    el.innerHTML = `<span class="file-dot connected"></span> Auto-saving to <strong>${getFileName()}</strong>`;
-    el.className = 'file-status connected';
+    if (lastBrowserSaveOk === false) {
+      el.innerHTML = `<span class="file-dot"></span> Browser save failed. File target: <strong>${esc(getFileName())}</strong>`;
+      el.className = 'file-status disconnected';
+    } else if (lastFileSaveOk === false) {
+      el.innerHTML = `<span class="file-dot"></span> Auto-save failed for <strong>${esc(getFileName())}</strong>. Export a backup.`;
+      el.className = 'file-status disconnected';
+    } else {
+      el.innerHTML = `<span class="file-dot connected"></span> Auto-saving to <strong>${esc(getFileName())}</strong>`;
+      el.className = 'file-status connected';
+    }
   } else {
-    el.innerHTML = `<span class="file-dot"></span> Browser only &mdash; data won't move to another PC`;
+    el.innerHTML = '<span class="file-dot"></span> Browser only &mdash; use Export Backup to move or protect data';
     el.className = 'file-status disconnected';
   }
 }
 
 async function handleConnectNew() {
   const ok = await connectNewDataFile();
+  lastFileSaveOk = ok ? true : null;
   if (ok) { updateFileStatus(); showToast('Data file connected. Auto-save enabled.'); }
+  else { updateFileStatus(); showToast('Could not connect a data file. Browser storage is still active.'); }
 }
 
 async function handleOpenExisting() {
@@ -1024,6 +1254,9 @@ async function handleOpenExisting() {
     updateFileStatus();
     renderOrdersTable();
     showToast('Data loaded from file.');
+  } else {
+    updateFileStatus();
+    showToast('Could not open that data file.');
   }
 }
 

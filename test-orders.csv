@@ -1,8 +1,6 @@
 OrderID,Customer,ModelName,FootprintW,FootprintD,Height,Quantity,ResinType,Deadline,Notes,OrderType,PrintTimeH,PrintTimeMin,ResinVolumeMl
-"#001","Marco Rossi","Panopticon Guard","28","22","32","6","Standard Grey","2026-04-30","Rush order","model","2","15","4.2"
-"#002","Laura Bianchi","Dungeon Mage","25","20","38","4","ABS-Like","2026-05-05","Handle with care","model","2","45","3.8"
-"#003","Federico Verdi","Dragon Rider","45","35","52","2","ABS-Like","2026-05-10","Large base model","model","3","30","12.5"
-"#004","Sara Neri","Skeleton Warrior","22","18","28","10","Standard Grey","2026-05-15","Bulk order","model","1","50","2.9"
-"#005","Giochi in Tavola srl","Orc Infantry Set","205","118","32","12","Standard Grey","2026-04-30","Full plate run for store","plate","2","20","185"
-"#006","Fantasy Land","Elvish Archer Formation","182","112","38","15","Water Washable","2026-05-02","","plate","2","50","162"
-"#007","Dungeon Masters Store","Undead Horde Pack","210","120","35","10","ABS-Like","2026-05-04","Urgent restock","plate","2","35","195"
+"#1001","Luca Ferri","Infantry Squad","24","18","32","12","Standard Grey","2026-05-14","Troop batch, standard supports","model","1","45","3.4"
+"#1002","Marta Leone","Dragon Bust","52","46","96","1","ABS-Like","2026-05-16","Large display piece","model","5","20","48"
+"#1003","Studio Miniature Nord","Dungeon Props Set","36","28","42","8","Water Washable","2026-05-18","Mixed scenery props","model","2","35","8.5"
+"#1004","Giochi in Tavola","Store Demo Plate","190","112","38","2","Standard Grey","2026-05-20","Full plate exported from slicer","plate","3","10","145"
+"#1005","Elena Ricci","Flexible Banner Pack","42","16","58","6","Flexible","2026-05-22","Use flexible resin profile","model","3","0","11.2"

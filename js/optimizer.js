@@ -5,55 +5,108 @@
 // Items are rectangular bounding boxes (W x D mm)
 // Returns: { plates: number, utilization: number (0-1), layout: [...] }
 
-function packItemsOnPlate(items, plateW, plateD) {
-  // items: [{ id, w, d, label }]
-  // Sort by depth descending (tallest items first = best shelf packing)
-  const sorted = [...items].sort((a, b) => b.d - a.d);
+function optNumber(value, fallback = 0) {
+  const n = parseFloat(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function optPositive(value, fallback = 0) {
+  return Math.max(optNumber(value, fallback), 0);
+}
+
+function optClamp(value, fallback = 0, min = -Infinity, max = Infinity) {
+  return Math.min(Math.max(optNumber(value, fallback), min), max);
+}
+
+function printerZFits(itemHeight, plateZ) {
+  const h = optPositive(itemHeight, 0);
+  if (h === 0) return true;
+  const z = optPositive(plateZ, 0);
+  return z > 0 && h <= z;
+}
+
+function chooseFootprintOrientation(item, plateW, plateD, margin) {
+  const w = optPositive(item.w, 0);
+  const d = optPositive(item.d, 0);
+  if (w <= 0 || d <= 0) return null;
+
+  const candidates = [
+    { w, d, rotated: false },
+    { w: d, d: w, rotated: true }
+  ].filter(c => (c.w + margin) <= plateW && (c.d + margin) <= plateD);
+
+  if (candidates.length === 0) return null;
+
+  return candidates.sort((a, b) => {
+    if (a.d !== b.d) return a.d - b.d;
+    if (a.w !== b.w) return a.w - b.w;
+    return Number(a.rotated) - Number(b.rotated);
+  })[0];
+}
+
+function packItemsOnPlate(items, plateW, plateD, plateZ, packingMarginMm) {
+  // items: [{ id, w, d, h, label }]
+  const MARGIN = optClamp(packingMarginMm, 2, 0, 50);
+  const normalized = (items || []).map(item => {
+    const copy = {
+      ...item,
+      w: optPositive(item.w, 0),
+      d: optPositive(item.d, 0),
+      h: optPositive(item.h, 0)
+    };
+    if (!printerZFits(copy.h, plateZ)) {
+      return { ...copy, doesNotFit: true };
+    }
+    const orientation = chooseFootprintOrientation(copy, plateW, plateD, MARGIN);
+    if (!orientation) {
+      return { ...copy, doesNotFit: true };
+    }
+    return {
+      ...copy,
+      layoutW: orientation.w,
+      layoutD: orientation.d,
+      rotated: orientation.rotated
+    };
+  });
+
+  // Sort by oriented depth descending (tallest shelf items first = best shelf packing)
+  const sorted = normalized.sort((a, b) => (b.layoutD || b.d) - (a.layoutD || a.d));
 
   const plates = [];
-  let currentPlate = { shelves: [], usedArea: 0 };
+  let currentPlate = { shelves: [], usedArea: 0, itemCount: 0 };
   let currentShelfY = 0;
   let currentShelfX = 0;
   let currentShelfHeight = 0;
-  const MARGIN = 2; // 2mm margin between parts
 
   function newPlate() {
-    plates.push(currentPlate);
-    currentPlate = { shelves: [], usedArea: 0 };
+    if (currentPlate.itemCount > 0) plates.push(currentPlate);
+    currentPlate = { shelves: [], usedArea: 0, itemCount: 0 };
     currentShelfY = 0;
     currentShelfX = 0;
     currentShelfHeight = 0;
   }
 
+  function placeItem(item) {
+    item.plateIndex = plates.length;
+    item.x = currentShelfX;
+    item.y = currentShelfY;
+    currentShelfX += item.layoutW + MARGIN;
+    currentShelfHeight = Math.max(currentShelfHeight, item.layoutD + MARGIN);
+    currentPlate.usedArea += item.w * item.d;
+    currentPlate.itemCount += 1;
+  }
+
   for (const item of sorted) {
-    const itemW = item.w + MARGIN;
-    const itemD = item.d + MARGIN;
+    if (item.doesNotFit) continue;
 
-    if (itemW > plateW || itemD > plateD) {
-      // Item doesn't fit on this printer at all
-      item.doesNotFit = true;
-      continue;
-    }
-
+    const itemW = item.layoutW + MARGIN;
+    const itemD = item.layoutD + MARGIN;
     // Try to place in current shelf
-    if (currentShelfX + itemW <= plateW) {
-      // Fits in current shelf
-      if (currentShelfY + itemD > plateD) {
-        // No vertical room -- need new plate
-        newPlate();
-        currentShelfY = 0;
-        currentShelfX = 0;
-        currentShelfHeight = itemD;
-      }
-      item.plateIndex = plates.length;
-      item.x = currentShelfX;
-      item.y = currentShelfY;
-      currentShelfX += itemW;
-      currentShelfHeight = Math.max(currentShelfHeight, itemD);
-      currentPlate.usedArea += item.w * item.d;
+    if (currentShelfX + itemW <= plateW && currentShelfY + itemD <= plateD) {
+      placeItem(item);
     } else {
       // Start new shelf
-      currentShelfY += currentShelfHeight + MARGIN;
+      currentShelfY += currentShelfHeight;
       currentShelfX = 0;
       currentShelfHeight = 0;
 
@@ -63,19 +116,12 @@ function packItemsOnPlate(items, plateW, plateD) {
         currentShelfY = 0;
       }
 
-      item.plateIndex = plates.length;
-      item.x = currentShelfX;
-      item.y = currentShelfY;
-      currentShelfX = itemW;
-      currentShelfHeight = itemD;
-      currentPlate.usedArea += item.w * item.d;
+      placeItem(item);
     }
   }
 
   // Push last plate if it has items
-  if (sorted.some(i => i.plateIndex === plates.length)) {
-    plates.push(currentPlate);
-  }
+  if (currentPlate.itemCount > 0) plates.push(currentPlate);
   if (plates.length === 0 && sorted.length > 0) plates.push(currentPlate);
 
   const totalPlates = Math.max(plates.length, 1);
@@ -115,12 +161,35 @@ function expandItems(orders) {
 
 // Direct printer selection for full-plate orders (no margin — plate is already finalised in Lychee)
 // Tries both orientations so a portrait plate can be assigned to a landscape printer
-function findPrinterForPlate(w, d, availablePrinters, settings) {
-  const candidates = (availablePrinters || getAllPrinters(settings)).filter(p => {
-    return (p.plateW >= w && p.plateD >= d) || (p.plateW >= d && p.plateD >= w);
-  });
+function resolvePlateArgs(hOrAvailablePrinters, availablePrintersOrSettings, maybeSettings) {
+  let h = 0;
+  let availablePrinters = hOrAvailablePrinters;
+  let settings = availablePrintersOrSettings;
+
+  if (!Array.isArray(hOrAvailablePrinters) && hOrAvailablePrinters !== null) {
+    h = hOrAvailablePrinters;
+    availablePrinters = availablePrintersOrSettings;
+    settings = maybeSettings;
+  }
+
+  return { h, availablePrinters, settings };
+}
+
+function findPrintersForPlate(w, d, hOrAvailablePrinters, availablePrintersOrSettings, maybeSettings) {
+  const { h, availablePrinters, settings } = resolvePlateArgs(hOrAvailablePrinters, availablePrintersOrSettings, maybeSettings);
+  const plateWidth = optPositive(w, 0);
+  const plateDepth = optPositive(d, 0);
+  return (availablePrinters || getAllPrinters(settings)).filter(p => {
+    if (!printerZFits(h, p.plateZ)) return false;
+    return (p.plateW >= plateWidth && p.plateD >= plateDepth)
+      || (p.plateW >= plateDepth && p.plateD >= plateWidth);
+  }).slice().sort((a, b) => a.wattage - b.wattage);
+}
+
+function findPrinterForPlate(w, d, hOrAvailablePrinters, availablePrintersOrSettings, maybeSettings) {
+  const candidates = findPrintersForPlate(w, d, hOrAvailablePrinters, availablePrintersOrSettings, maybeSettings);
   if (candidates.length === 0) return null;
-  return candidates.slice().sort((a, b) => a.wattage - b.wattage)[0];
+  return candidates[0];
 }
 
 // Recommend which printer to use for a set of items
@@ -138,15 +207,28 @@ function recommendPrinter(items, settings, availablePrinters) {
 
   let bestResult = null;
   let bestPrinter = null;
+  const packingMarginMm = settings && settings.queuePackingMarginMm;
+
+  function isBetterFullFit(result, printer) {
+    if (!bestResult) return true;
+    if (result.plates !== bestResult.plates) return result.plates < bestResult.plates;
+    if (result.utilization !== bestResult.utilization) return result.utilization > bestResult.utilization;
+    return printer.wattage < bestPrinter.wattage;
+  }
+
+  function isBetterPartialFit(result, printer, minNotFit) {
+    if (result.doesNotFitCount !== minNotFit) return result.doesNotFitCount < minNotFit;
+    if (!bestResult) return true;
+    if (result.plates !== bestResult.plates) return result.plates < bestResult.plates;
+    if (result.utilization !== bestResult.utilization) return result.utilization > bestResult.utilization;
+    return printer.wattage < bestPrinter.wattage;
+  }
 
   for (const printer of printerOrder) {
-    const result = packItemsOnPlate(items, printer.plateW, printer.plateD);
+    const result = packItemsOnPlate(items, printer.plateW, printer.plateD, printer.plateZ, packingMarginMm);
 
     if (result.doesNotFitCount === 0) {
-      if (!bestResult) {
-        bestResult = result;
-        bestPrinter = printer;
-      } else if (result.utilization > bestResult.utilization) {
+      if (isBetterFullFit(result, printer)) {
         bestResult = result;
         bestPrinter = printer;
       }
@@ -157,8 +239,8 @@ function recommendPrinter(items, settings, availablePrinters) {
   if (!bestPrinter) {
     let minNotFit = Infinity;
     for (const printer of printerOrder) {
-      const result = packItemsOnPlate(items, printer.plateW, printer.plateD);
-      if (result.doesNotFitCount < minNotFit) {
+      const result = packItemsOnPlate(items, printer.plateW, printer.plateD, printer.plateZ, packingMarginMm);
+      if (isBetterPartialFit(result, printer, minNotFit)) {
         minNotFit = result.doesNotFitCount;
         bestResult = result;
         bestPrinter = printer;

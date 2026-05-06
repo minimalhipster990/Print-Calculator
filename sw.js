@@ -1,7 +1,6 @@
-const CACHE = 'tl-production-v1';
+const CACHE = 'tl-production-v7';
 const ASSETS = [
-  './',
-  './index.html',
+  './Calculator.html',
   './manifest.json',
   './css/style.css',
   './js/printers.js',

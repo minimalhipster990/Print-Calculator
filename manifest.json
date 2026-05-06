@@ -2,7 +2,7 @@
   "name": "Tiny Legions Production",
   "short_name": "TL Production",
   "description": "Resin print cost calculator, order manager and print queue for Tiny Legions",
-  "start_url": "./",
+  "start_url": "./Calculator.html",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#0f1117",

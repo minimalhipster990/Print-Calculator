@@ -211,6 +211,13 @@
               </div>
             </div>
             <div class="form-group">
+              <label>Amortization Hours / Day</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-operating-hours" min="1" max="24" step="0.5" value="16" oninput="calcRun()">
+                <span class="unit">h/day</span>
+              </div>
+            </div>
+            <div class="form-group">
               <label>Labor Time (prep + post)</label>
               <div class="input-with-unit">
                 <input type="number" id="calc-labor-time" min="0" step="5" value="30" oninput="calcRun()">
@@ -238,6 +245,13 @@
                 <span class="unit">%</span>
               </div>
             </div>
+            <div class="form-group">
+              <label>VAT / IVA</label>
+              <div class="input-with-unit">
+                <input type="number" id="calc-vat-rate" min="0" max="100" step="0.1" value="22" oninput="calcRun()">
+                <span class="unit">%</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -253,10 +267,13 @@
         <div class="result-row"><span class="label">Packaging</span><span class="value" id="out-packaging">€0.00</span></div>
         <div class="result-row"><span class="label">Shipping</span><span class="value" id="out-shipping">€0.00</span></div>
         <div class="section-divider"></div>
-        <div class="result-total"><span class="label">Production Cost</span><span class="value" id="out-total">€0.00</span></div>
+        <div class="result-total"><span class="label">Print Price excl. VAT & Packaging/Shipping</span><span class="value" id="out-total">€0.00</span></div>
+        <div class="result-row"><span class="label">VAT / IVA</span><span class="value" id="out-vat">€0.00</span></div>
+        <div class="result-row"><span class="label">Packaging & Shipping</span><span class="value" id="out-fulfillment">€0.00</span></div>
         <div class="result-sale">
-          <div class="sale-label">Recommended Sale Price</div>
+          <div class="sale-label">Final Price</div>
           <div class="sale-value" id="out-sale-price">€0.00</div>
+          <div class="per-cm3" id="out-price-breakdown">€0.00 print + €0.00 VAT + €0.00 packaging & shipping</div>
           <div class="per-cm3" id="out-per-cm3">€0.000/cm³</div>
         </div>
       </div>
@@ -313,7 +330,7 @@
 
     <div class="toolbar">
       <button class="btn btn-primary" onclick="renderQueue()">Generate Queue</button>
-      <button class="btn btn-secondary" onclick="exportQueueCSV(currentBatches)">Export CSV</button>
+      <button class="btn btn-secondary" onclick="exportCurrentQueueCSV()">Export CSV</button>
     </div>
     <div id="queue-alert"></div>
     <div id="queue-container">
@@ -356,12 +373,53 @@
           <div class="input-with-unit"><input type="number" id="s-labor-rate" min="0" step="1"><span class="unit" data-curr="per-h">€/h</span></div>
         </div>
         <div class="setting-row">
+          <label>Amortization Hours / Day</label>
+          <div class="input-with-unit"><input type="number" id="s-operating-hours" min="1" max="24" step="0.5"><span class="unit">h/day</span></div>
+        </div>
+        <div class="setting-row">
           <label>Failed Print Risk</label>
           <div class="input-with-unit"><input type="number" id="s-risk" min="0" max="100" step="1"><span class="unit">%</span></div>
         </div>
         <div class="setting-row">
           <label>Profit Margin</label>
           <div class="input-with-unit"><input type="number" id="s-margin" min="0" max="99" step="1"><span class="unit">%</span></div>
+        </div>
+        <div class="setting-row">
+          <label>VAT / IVA</label>
+          <div class="input-with-unit"><input type="number" id="s-vat-rate" min="0" max="100" step="0.1"><span class="unit">%</span></div>
+        </div>
+      </div>
+
+      <!-- Queue Assumptions -->
+      <div class="card">
+        <div class="card-title">Queue Assumptions</div>
+        <div class="setting-row">
+          <label>Production Start Time</label>
+          <div class="input-with-unit"><input type="time" id="s-production-start"><span class="unit">local</span></div>
+        </div>
+        <div class="setting-row">
+          <label>Scheduler Hours / Day</label>
+          <div class="input-with-unit"><input type="number" id="s-scheduler-hours" min="1" max="24" step="0.5"><span class="unit">h/day</span></div>
+        </div>
+        <div class="setting-row">
+          <label>Plate Turnaround</label>
+          <div class="input-with-unit"><input type="number" id="s-turnaround" min="0" step="5"><span class="unit">min</span></div>
+        </div>
+        <div class="setting-row">
+          <label>Queue Support Resin</label>
+          <div class="input-with-unit"><input type="number" id="s-queue-support" min="0" max="300" step="1"><span class="unit">%</span></div>
+        </div>
+        <div class="setting-row">
+          <label>Queue Labor / Batch</label>
+          <div class="input-with-unit"><input type="number" id="s-queue-labor-time" min="0" step="5"><span class="unit">min</span></div>
+        </div>
+        <div class="setting-row">
+          <label>Queue Consumables / Batch</label>
+          <div class="input-with-unit"><input type="number" id="s-queue-other-consumables" min="0" step="0.01"><span class="unit" data-curr="flat">€</span></div>
+        </div>
+        <div class="setting-row">
+          <label>Packing Margin</label>
+          <div class="input-with-unit"><input type="number" id="s-queue-packing-margin" min="0" max="50" step="0.5"><span class="unit">mm</span></div>
         </div>
       </div>
 
@@ -413,11 +471,7 @@
       <button class="btn btn-secondary" onclick="exportAllData()">Export Backup</button>
       <label class="btn btn-secondary" style="cursor:pointer">
         Import Backup
-        <input type="file" accept=".json" style="display:none" onchange="
-          const r = new FileReader();
-          r.onload = e => { if(importAllData(e.target.result)) { orders=loadOrders(); settings=loadSettings(); initSettingsTab(); showToast('Backup imported.'); } else { alert('Invalid backup file.'); } };
-          r.readAsText(this.files[0]);
-        ">
+        <input type="file" accept=".json" style="display:none" onchange="handleImportBackup(this.files[0])">
       </label>
     </div>
   </div>
