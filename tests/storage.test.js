@@ -47,6 +47,7 @@ test('default settings include separate amortization/scheduler hours and queue a
   assert.equal(settings.queueLaborTimeMin, 30);
   assert.equal(settings.queueOtherConsumables, 0.30);
   assert.equal(settings.queuePackingMarginMm, 2);
+  assert.equal(settings.washCureTimeMin, 30);
 });
 
 test('importAllData normalizes unsafe ids, dates, queue assumptions and economic ranges', () => {
@@ -64,6 +65,7 @@ test('importAllData normalizes unsafe ids, dates, queue assumptions and economic
       queueLaborTimeMin: -5,
       queueOtherConsumables: -0.5,
       queuePackingMarginMm: -1,
+      washCureTimeMin: -10,
       fepLifespan: 0,
       resins: [{ name: '<script>', price: -5, density: 99 }]
     },
@@ -105,6 +107,7 @@ test('importAllData normalizes unsafe ids, dates, queue assumptions and economic
   assert.equal(settings.queueLaborTimeMin, 0);
   assert.equal(settings.queueOtherConsumables, 0);
   assert.equal(settings.queuePackingMarginMm, 0);
+  assert.equal(settings.washCureTimeMin, 0);
   assert.equal(settings.fepLifespan, 1);
   assert.equal(settings.resins[0].price, 0);
   assert.equal(settings.resins[0].density, 3);

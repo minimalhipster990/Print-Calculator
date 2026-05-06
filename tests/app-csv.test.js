@@ -63,6 +63,7 @@ test('syncCalculatorDefaultsFromSettings applies all calculator economic default
     'calc-ipa-per-print',
     'calc-fep-cost',
     'calc-fep-lifespan',
+    'calc-wash-cure-time',
     'calc-labor-rate',
     'calc-operating-hours',
     'calc-risk',
@@ -77,6 +78,7 @@ test('syncCalculatorDefaultsFromSettings applies all calculator economic default
     ipaPerPrint: 55,
     fepCost: 14,
     fepLifespan: 150,
+    washCureTimeMin: 45,
     laborRate: 23,
     operatingHoursPerDay: 16,
     depreciationHoursPerDay: 10,
@@ -95,6 +97,7 @@ test('syncCalculatorDefaultsFromSettings applies all calculator economic default
   assert.equal(elements['calc-ipa-per-print'].value, 55);
   assert.equal(elements['calc-fep-cost'].value, 14);
   assert.equal(elements['calc-fep-lifespan'].value, 150);
+  assert.equal(elements['calc-wash-cure-time'].value, 45);
   assert.equal(elements['calc-labor-rate'].value, 23);
   assert.equal(elements['calc-operating-hours'].value, 10);
   assert.equal(elements['calc-risk'].value, 12);
@@ -188,6 +191,7 @@ test('calcRun renders margin-adjusted print, VAT, fulfillment and final price', 
     'calc-hours': 0,
     'calc-minutes': 0,
     'calc-electricity': 0,
+    'calc-wash-cure-time': 0,
     'calc-ipa-price': 0,
     'calc-ipa-per-print': 0,
     'calc-fep-cost': 0,

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3 - Configurable wash/cure electricity
+
+- Made wash/cure electricity time configurable, defaulting to 30 minutes and allowing 0 minutes when post-processing power should be excluded.
+- Applied the configured wash/cure time to both the live calculator and queue batch cost estimates.
+- Updated the service worker cache so local/offline users receive the new calculator UI.
+
 ## 1.2 - Daily-use pricing and queue reliability
 
 This release turns the calculator into a more realistic daily-use quoting and production planning tool.

@@ -17,10 +17,9 @@ function calcResinCost(modelVolumeMl, supportPct, resinPricePerL) {
   return (totalVolume / 1000) * clampNumber(resinPricePerL, 0, 0);
 }
 
-function calcElectricityCost(printerWattage, printTimeMin, electricityRate) {
+function calcElectricityCost(printerWattage, printTimeMin, electricityRate, washCureTimeMin) {
   const hours = clampNumber(printTimeMin, 0, 0) / 60;
-  // Add 30 min wash+cure at ~50W
-  const washCureHours = 0.5;
+  const washCureHours = clampNumber(washCureTimeMin, 30, 0, 1440) / 60;
   const washCureW = 50;
   const totalKwh = ((clampNumber(printerWattage, 0, 0) * hours) + (washCureW * washCureHours)) / 1000;
   return totalKwh * clampNumber(electricityRate, 0, 0);
@@ -74,7 +73,9 @@ function calcVatAmount(netSalePrice, vatRatePct) {
 
 function runCalculation(inputs) {
   const resin = calcResinCost(inputs.modelVolume, inputs.supportPct, inputs.resinPrice);
-  const electricity = calcElectricityCost(inputs.printerWattage, inputs.printTime, inputs.electricityRate);
+  const electricity = calcElectricityCost(
+    inputs.printerWattage, inputs.printTime, inputs.electricityRate, inputs.washCureTime
+  );
   const consumables = calcConsumablesCost(inputs.ipaPrice, inputs.ipaPerPrint, inputs.fepCost, inputs.fepLifespan, inputs.otherConsumables);
   const depreciation = calcDepreciation(inputs.purchasePrice, inputs.lifespanYears, inputs.printTime, inputs.operatingHoursPerDay);
   const labor = calcLaborCost(inputs.laborTime, inputs.laborRate);

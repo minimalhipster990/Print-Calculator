@@ -2,7 +2,7 @@
 
 **A free, offline production management tool for resin 3D printing operations.**
 
-Current version: **1.2**
+Current version: **1.3**
 
 Built for small-scale MSLA print farms — manage orders, optimize build plates, schedule print queues, and calculate accurate production costs, all from a single HTML file with no installation required.
 
@@ -62,7 +62,7 @@ If you skip this step, or if your browser does not support direct file access, d
 Enter your print parameters and the calculator updates live:
 
 - **Material cost** — resin volume (model + supports) at your resin price per litre
-- **Electricity cost** — print time × printer wattage × your electricity rate
+- **Electricity cost** — print time × printer wattage plus configurable wash/cure time at 50W × your electricity rate
 - **Consumables cost** — IPA wash solution + FEP film amortised per print
 - **Depreciation** — printer purchase price spread across its expected lifespan and your amortization hours per day
 - **Labor cost** — post-processing time × your hourly rate
@@ -78,7 +78,7 @@ Enter your print parameters and the calculator updates live:
 ```
 resin_cost = model_volume_ml × (1 + support_pct/100) / 1000 × resin_price_per_L
 
-electricity_cost = ((print_time_h × printer_wattage_W) + (0.5 × 50W wash/cure)) / 1000 × electricity_rate_per_kWh
+electricity_cost = ((print_time_h × printer_wattage_W) + (wash_cure_time_h × 50W)) / 1000 × electricity_rate_per_kWh
 
 consumables_cost = (ipa_used_ml / 1000 × ipa_price_per_L) + (fep_cost / fep_lifespan_prints) + other_consumables
 
@@ -112,6 +112,7 @@ cost_per_cm3 = expected_production_cost / model_volume_ml
 ### Tips
 
 - Select a printer at the top and wattage fills automatically
+- Set Wash + Cure Time to 0 if you want electricity to include only printer runtime
 - All inputs persist when you switch tabs, the calculator remembers your last values
 - Use this per model to build up your pricing sheet
 

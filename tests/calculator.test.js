@@ -89,6 +89,15 @@ test('VAT is applied on top of the suggested price excluding VAT', () => {
   assert.equal(result.salePrice, 12.2);
 });
 
+test('wash and cure time is configurable in electricity cost', () => {
+  const { calcElectricityCost } = loadCalculator();
+  const round = value => Number(value.toFixed(6));
+
+  assert.equal(round(calcElectricityCost(0, 0, 0.20)), 0.005);
+  assert.equal(round(calcElectricityCost(0, 0, 0.20, 0)), 0);
+  assert.equal(round(calcElectricityCost(0, 0, 0.20, 60)), 0.01);
+});
+
 test('suggested and final prices show fulfillment separately while taxing the full subtotal', () => {
   const { runCalculation } = loadCalculator();
   const result = runCalculation({

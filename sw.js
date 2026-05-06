@@ -1,4 +1,4 @@
-const CACHE = 'tl-production-v7';
+const CACHE = 'tl-production-v8';
 const ASSETS = [
   './Calculator.html',
   './manifest.json',

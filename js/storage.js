@@ -37,6 +37,7 @@ function buildDefaultSettings() {
   return {
     currency: 'EUR',
     electricityRate: 0.25,
+    washCureTimeMin: 30,
     laborRate: 15,
     operatingHoursPerDay: 16,
     depreciationHoursPerDay: 16,
@@ -250,6 +251,7 @@ function normalizeSettings(rawSettings) {
     ...base,
     currency: /^[A-Z]{3}$/.test(storageText(stored.currency, 3)) ? storageText(stored.currency, 3) : base.currency,
     electricityRate: storageClamp(stored.electricityRate, base.electricityRate, 0, 100),
+    washCureTimeMin: storageClamp(stored.washCureTimeMin, base.washCureTimeMin, 0, 1440),
     laborRate: storageClamp(stored.laborRate, base.laborRate, 0, 10000),
     operatingHoursPerDay: depreciationHoursPerDay,
     depreciationHoursPerDay,

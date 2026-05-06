@@ -141,6 +141,7 @@ function syncCalculatorDefaultsFromSettings() {
   };
 
   setDefault('calc-electricity', settings.electricityRate ?? 0.25);
+  setDefault('calc-wash-cure-time', settings.washCureTimeMin ?? 30);
   setDefault('calc-ipa-price', settings.ipaPrice ?? 5);
   setDefault('calc-ipa-per-print', settings.ipaPerPrint ?? 30);
   setDefault('calc-fep-cost', settings.fepCost ?? 12);
@@ -195,6 +196,7 @@ function calcRun() {
     printerWattage: g('calc-wattage'),
     printTime: totalPrintMinutes,
     electricityRate: g('calc-electricity'),
+    washCureTime: numOrDefault(document.getElementById('calc-wash-cure-time')?.value, settings.washCureTimeMin ?? 30),
     ipaPrice: g('calc-ipa-price'),
     ipaPerPrint: g('calc-ipa-per-print'),
     fepCost: g('calc-fep-cost'),
@@ -561,6 +563,7 @@ function estimateBatchCost(batch) {
     printerWattage: batch.printer.wattage,
     printTime: batch.printTimeMin,
     electricityRate: settings.electricityRate ?? 0.25,
+    washCureTime: settings.washCureTimeMin ?? 30,
     ipaPrice: settings.ipaPrice ?? 5,
     ipaPerPrint: settings.ipaPerPrint ?? 30,
     fepCost: settings.fepCost ?? 12,
@@ -818,6 +821,7 @@ function initSettingsTab() {
   const g = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
   g('s-currency', settings.currency || 'EUR');
   g('s-electricity', settings.electricityRate);
+  g('s-wash-cure-time', settings.washCureTimeMin ?? 30);
   g('s-labor-rate', settings.laborRate);
   g('s-operating-hours', getDepreciationHoursPerDay(settings));
   g('s-scheduler-hours', getSchedulerOperatingHoursPerDay(settings));
@@ -1146,6 +1150,7 @@ function saveSettingsForm() {
   const g = id => parseFloat(document.getElementById(id)?.value) || 0;
   settings.currency = document.getElementById('s-currency')?.value || 'EUR';
   settings.electricityRate = g('s-electricity');
+  settings.washCureTimeMin = Math.max(numOrDefault(document.getElementById('s-wash-cure-time')?.value, 30), 0);
   settings.laborRate = g('s-labor-rate');
   settings.depreciationHoursPerDay = Math.max(g('s-operating-hours') || 16, 1);
   settings.operatingHoursPerDay = settings.depreciationHoursPerDay;
